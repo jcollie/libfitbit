@@ -227,8 +227,8 @@ class FitBitDaemon(object):
     def open_log(self):
         self.log = open('/var/log/fitbit.log', 'a')
 
-    def write_log(self, str):
-        self.log.write('%s %s\n' % (self.log_prefix(self.log_info)))
+    def write_log(self, s):
+        self.log.write('%s %s\n' % (self.log_prefix(self.log_info), s))
 
     def log_prefix(self):
         return '[%s] [%s -> %s]' % (time.ctime(), \
