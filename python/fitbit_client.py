@@ -187,7 +187,7 @@ class FitBitDaemon(object):
         except usb.USBError, e:
             # Raise this error up the stack, since USB errors are fairly
             # critical.
-            self.write_log('ERROR: ' + e)
+            self.write_log('ERROR: ' + str(e))
             raise
         except Exception, e:
             # For other errors, log and increase error counter.
@@ -196,7 +196,7 @@ class FitBitDaemon(object):
             print '-'*60
             traceback.print_exc(file=sys.stdout)
             print '-'*60
-            self.write_log('ERROR: ' + e)
+            self.write_log('ERROR: ' + str(e))
             self.errors += 1
         else:
             # Clear error counter after a successful sync.
