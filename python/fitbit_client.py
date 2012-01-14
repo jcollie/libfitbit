@@ -162,17 +162,14 @@ class FitBitClient(object):
 
 class FitBitDaemon(object):
 
+    def __init__(self):
+        self.log_info = {}
+        self.log = None
+
     def do_sync(self):
         f = FitBitClient()
         f.run_upload_request()
-        return f.log_info
-
-    def log_field(self, log_info, f):
-        return (log_info[f] if f in log_info else '<unknown %s>' % f)
-
-    def log_prefix(self, log_info):
-        return '[' + time.ctime() + '] ' + \
-            '[' + self.log_field(log_info, 'deviceInfo.serialNumber') + ' -> ' + self.log_field(log_info, 'userPublicId') + ']'
+        self.log_info = f.log_info
 
     def sleep_minutes(mins):
         for m in range(mins, 0, -1):
@@ -181,46 +178,71 @@ class FitBitDaemon(object):
 
     def try_sync(self):
         import traceback
-        log_info = {}
+        self.log_info = {}
         try:
-            log_info = self.do_sync()
+            self.do_sync()
         except FitBitBeaconTimeout, e:
+            # This error is fairly normal, do we don't increase error counter.
             print e
         except usb.USBError, e:
-            self.log.write('%s ERROR: %s\n' % (self.log_prefix(log_info), e))
+            # Raise this error up the stack, since USB errors are fairly
+            # critical.
+            self.write_log('ERROR: ' + e)
             raise
         except Exception, e:
+            # For other errors, log and increase error counter.
             print "Failed with", e
             print
             print '-'*60
             traceback.print_exc(file=sys.stdout)
             print '-'*60
-            ok = False
-            self.log.write('%s ERROR: %s\n' % (self.log_prefix(log_info), e))
+            self.write_log('ERROR: ' + e)
             self.errors += 1
         else:
+            # Clear error counter after a successful sync.
             print "normal finish"
-            self.log.write('%s SUCCESS\n' % (self.log_prefix(log_info)))
+            self.write_log('SUCCESS')
             self.errors = 0
 
     def run(self):
         import sys, os, signal
         sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
-        
         self.errors = 0
         
         while self.errors < 3:
-            self.log = open('/var/log/fitbit.log', 'a')
             signal.alarm(300) # safety limit
+            self.open_log()
             self.try_sync()
-            self.log.close()
+            self.close_log()
             signal.alarm(0)
             time.sleep(10)
         
         print 'exiting due to earlier failure'
         sys.exit(1)
 
+    #
+    # Logging functions
+    #
+
+    def open_log(self):
+        self.log = open('/var/log/fitbit.log', 'a')
+
+    def write_log(self, str):
+        self.log.write('%s %s\n' % (self.log_prefix(self.log_info)))
+
+    def log_prefix(self):
+        return '[%s] [%s -> %s]' % (time.ctime(), \
+                self.log_field(self.log_info, 'deviceInfo.serialNumber'), \
+                self.log_field(self.log_info, 'userPublicId'))
+
+    def log_field(self, f):
+        return (self.log_info[f] if f in self.log_info else '<unknown %s>' % f)
+
+    def close_log(self):
+        if (self.log):
+            self.log.close()
+
 if __name__ == '__main__':
     FitBitDaemon().run()
 
-    # vim: set ts=4 sw=4 expandtab:
+# vim: set ts=4 sw=4 expandtab:
