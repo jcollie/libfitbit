@@ -229,8 +229,8 @@ class FitBitDaemon(object):
 
     def write_log(self, s):
         self.log.write('[%s] [%s -> %s] %s\n' % (time.ctime(), \
-                self.log_field(self.log_info, 'deviceInfo.serialNumber'), \
-                self.log_field(self.log_info, 'userPublicId'), s))
+                self.log_field('deviceInfo.serialNumber'), \
+                self.log_field('userPublicId'), s))
 
     def log_field(self, f):
         return (self.log_info[f] if f in self.log_info else 'UNKNOWN')
