@@ -107,6 +107,10 @@ class FitBitClient(object):
         self.fitbit = FitBit(base)
         self.remote_info = None
 
+    def __del__(self):
+        self.close()
+        self.fitbit = None
+
     def form_base_info(self):
         self.info_dict.clear()
         self.info_dict["beaconType"] = "standard"
@@ -121,8 +125,12 @@ class FitBitClient(object):
                 self.log_info[f] = self.info_dict[f]
 
     def close(self):
-        if self.fitbit and self.fitbit.base:
+        try:
+            print 'Closing USB device'
             self.fitbit.base.close()
+            self.fitbit.base = None
+        except AttributeError, e:
+            pass
 
     def run_upload_request(self):
         self.fitbit.init_tracker_for_transfer()
@@ -151,47 +159,35 @@ class FitBitClient(object):
                 print "No URL returned. Quitting."
                 break
         self.fitbit.command_sleep()
-        self.fitbit.base.close()
 
-def do_sync():
-    f = FitBitClient()
-    try:
-        f.run_upload_request()    
-    except Exception, e:
-        f.close()
-        raise
-    f.close()
-    return f.log_info
+class FitBitDaemon(object):
 
-def log_field(log_info, f):
-    return (log_info[f] if f in log_info else '<unknown %s>' % f)
+    def do_sync(self):
+        f = FitBitClient()
+        f.run_upload_request()
+        return f.log_info
 
-def log_prefix(log_info):
-    return '[' + time.ctime() + '] ' + \
-        '[' + log_field(log_info, 'deviceInfo.serialNumber') + ' -> ' + log_field(log_info, 'userPublicId') + ']'
+    def log_field(self, log_info, f):
+        return (log_info[f] if f in log_info else '<unknown %s>' % f)
 
-def sleep_minutes(mins):
-    for m in range(mins, 0, -1):
-        print time.ctime(), "waiting", m, "minutes and then restarting..."
-        time.sleep(60)
+    def log_prefix(self, log_info):
+        return '[' + time.ctime() + '] ' + \
+            '[' + self.log_field(log_info, 'deviceInfo.serialNumber') + ' -> ' + self.log_field(log_info, 'userPublicId') + ']'
 
-def main():
-    import traceback
-    import sys, os, signal
-    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
-    
-    errors = 0
-    
-    while errors < 3:
-        log = open('/var/log/fitbit.log', 'a')
+    def sleep_minutes(mins):
+        for m in range(mins, 0, -1):
+            print time.ctime(), "waiting", m, "minutes and then restarting..."
+            time.sleep(60)
+
+    def try_sync(self):
+        import traceback
         log_info = {}
-        signal.alarm(300) # safety limit
         try:
-            log_info = do_sync()
+            log_info = self.do_sync()
         except FitBitBeaconTimeout, e:
             print e
         except usb.USBError, e:
-            log.write('%s ERROR: %s\n' % (log_prefix(log_info), e))
+            self.log.write('%s ERROR: %s\n' % (self.log_prefix(log_info), e))
             raise
         except Exception, e:
             print "Failed with", e
@@ -200,20 +196,31 @@ def main():
             traceback.print_exc(file=sys.stdout)
             print '-'*60
             ok = False
-            log.write('%s ERROR: %s\n' % (log_prefix(log_info), e))
-            errors += 1
+            self.log.write('%s ERROR: %s\n' % (self.log_prefix(log_info), e))
+            self.errors += 1
         else:
             print "normal finish"
-            log.write('%s SUCCESS\n' % (log_prefix(log_info)))
-            errors = 0
-        log.close()
-        signal.alarm(0)
-        time.sleep(10)
-    
-    print 'exiting due to earlier failure'
-    return 1
+            self.log.write('%s SUCCESS\n' % (self.log_prefix(log_info)))
+            self.errors = 0
+
+    def run(self):
+        import sys, os, signal
+        sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+        
+        self.errors = 0
+        
+        while self.errors < 3:
+            self.log = open('/var/log/fitbit.log', 'a')
+            signal.alarm(300) # safety limit
+            self.try_sync()
+            self.log.close()
+            signal.alarm(0)
+            time.sleep(10)
+        
+        print 'exiting due to earlier failure'
+        sys.exit(1)
 
 if __name__ == '__main__':
-    sys.exit(main())
+    FitBitDaemon().run()
 
-# vim: set ts=4 sw=4 expandtab:
+    # vim: set ts=4 sw=4 expandtab:
