@@ -70,6 +70,10 @@ import itertools, sys, random, operator, datetime
 from antprotocol.bases import FitBitANT, DynastreamANT
 from antprotocol.protocol import ANTReceiveException
 
+class FitBitBeaconTimeout(Exception):
+   """
+   """
+
 class FitBit(object):
     """Class to represent the fitbit tracker device, the portion of
     the fitbit worn by the user. Stores information about the tracker
@@ -181,16 +185,22 @@ class FitBit(object):
         # 0x78 0x01 is apparently the device reset command
         self.base.send_acknowledged_data([0x78, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
 
+    def command_sleep(self):
+        self.base.send_acknowledged_data([0x7f, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3c])
+
     def wait_for_beacon(self):
         # FitBit device initialization
-        print "Waiting for receive"
-        while True:
+        tries = 0
+        while tries < 30:
+            print "Waiting for receive"
+            tries += 1
             try:
                 d = self.base._receive()
                 if d[2] == 0x4E:
-                    break
+                    return
             except Exception:
                 pass
+        raise FitBitBeaconTimeout("Timeout waiting for beacon, will restart")
 
     def _get_tracker_burst(self):
         d = self.base._check_burst_response()

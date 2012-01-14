@@ -44,12 +44,14 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #################################################################
 
+import usb
+import time
 import sys
 import urllib
 import urllib2
 import base64
 import xml.etree.ElementTree as et
-from fitbit import FitBit
+from fitbit import FitBit, FitBitBeaconTimeout
 from antprotocol.bases import FitBitANT, DynastreamANT
 
 class FitBitResponse(object):
@@ -86,6 +88,7 @@ class FitBitClient(object):
 
     def __init__(self):
         self.info_dict = {}
+        self.log_info = {}
         base = FitBitANT(debug=True)
         
         for retries in (2,1,0):
@@ -113,6 +116,13 @@ class FitBitClient(object):
         self.info_dict["clientId"] = self.CLIENT_UUID
         if self.remote_info:
             self.info_dict = dict(self.info_dict, **self.remote_info)
+        for f in ['deviceInfo.serialNumber','userPublicId']:
+            if f in self.info_dict:
+                self.log_info[f] = self.info_dict[f]
+
+    def close(self):
+        if self.fitbit and self.fitbit.base:
+            self.fitbit.base.close()
 
     def run_upload_request(self):
         self.fitbit.init_tracker_for_transfer()
@@ -140,33 +150,69 @@ class FitBitClient(object):
             else:
                 print "No URL returned. Quitting."
                 break
+        self.fitbit.command_sleep()
         self.fitbit.base.close()
 
-def main():
+def do_sync():
     f = FitBitClient()
-    f.run_upload_request()    
-    return 0
+    try:
+        f.run_upload_request()    
+    except Exception, e:
+        f.close()
+        raise
+    f.close()
+    return f.log_info
 
-if __name__ == '__main__':
-    import time
+def log_field(log_info, f):
+    return (log_info[f] if f in log_info else '<unknown %s>' % f)
+
+def log_prefix(log_info):
+    return '[' + time.ctime() + '] ' + \
+        '[' + log_field(log_info, 'deviceInfo.serialNumber') + ' -> ' + log_field(log_info, 'userPublicId') + ']'
+
+def sleep_minutes(mins):
+    for m in range(mins, 0, -1):
+        print time.ctime(), "waiting", m, "minutes and then restarting..."
+        time.sleep(60)
+
+def main():
     import traceback
+    import sys, os, signal
+    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
     
-    cycle_minutes = 15
+    errors = 0
     
-    while True:
+    while errors < 3:
+        log = open('/var/log/fitbit.log', 'a')
+        log_info = {}
+        signal.alarm(300) # safety limit
         try:
-            main()
+            log_info = do_sync()
+        except FitBitBeaconTimeout, e:
+            print e
+        except usb.USBError, e:
+            raise
         except Exception, e:
             print "Failed with", e
             print
             print '-'*60
             traceback.print_exc(file=sys.stdout)
             print '-'*60
+            ok = False
+            log.write('%s ERROR: %s\n' % (log_prefix(log_info), e))
+            errors += 1
         else:
             print "normal finish"
-
-        print time.ctime(), "waiting", cycle_minutes, "minutes and then restarting..."
-        time.sleep(60*cycle_minutes)
+            log.write('%s SUCCESS\n' % (log_prefix(log_info)))
+            errors = 0
+        log.close()
+        signal.alarm(0)
+        time.sleep(10)
     
-    #sys.exit(main())
+    print 'exiting due to earlier failure'
+    return 1
 
+if __name__ == '__main__':
+    sys.exit(main())
+
+# vim: set ts=4 sw=4 expandtab:
