@@ -191,6 +191,7 @@ def main():
         except FitBitBeaconTimeout, e:
             print e
         except usb.USBError, e:
+            log.write('%s ERROR: %s\n' % (log_prefix(log_info), e))
             raise
         except Exception, e:
             print "Failed with", e
