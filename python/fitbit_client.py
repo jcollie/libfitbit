@@ -44,7 +44,6 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #################################################################
 
-import usb
 import time
 import sys
 import urllib
@@ -178,6 +177,7 @@ class FitBitDaemon(object):
 
     def try_sync(self):
         import traceback
+        import usb
         self.log_info = {}
         try:
             self.do_sync()
