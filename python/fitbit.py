@@ -189,10 +189,8 @@ class FitBit(object):
 
     def wait_for_beacon(self):
         # FitBit device initialization
-        tries = 0
-        while tries < 30:
+        for tries in range(30):
             print "Waiting for receive"
-            tries += 1
             try:
                 d = self.base._receive()
                 if d[2] == 0x4E:
@@ -358,3 +356,5 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+
+# vim: set ts=4 sw=4 expandtab:
