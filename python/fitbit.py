@@ -71,8 +71,7 @@ from antprotocol.bases import FitBitANT, DynastreamANT
 from antprotocol.protocol import ANTReceiveException
 
 class FitBitBeaconTimeout(Exception):
-   """
-   """
+   pass
 
 class FitBit(object):
     """Class to represent the fitbit tracker device, the portion of
