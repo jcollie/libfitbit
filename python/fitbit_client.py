@@ -228,15 +228,12 @@ class FitBitDaemon(object):
         self.log = open('/var/log/fitbit.log', 'a')
 
     def write_log(self, s):
-        self.log.write('%s %s\n' % (self.log_prefix(self.log_info), s))
-
-    def log_prefix(self):
-        return '[%s] [%s -> %s]' % (time.ctime(), \
+        self.log.write('[%s] [%s -> %s] %s\n' % (time.ctime(), \
                 self.log_field(self.log_info, 'deviceInfo.serialNumber'), \
-                self.log_field(self.log_info, 'userPublicId'))
+                self.log_field(self.log_info, 'userPublicId'), s))
 
     def log_field(self, f):
-        return (self.log_info[f] if f in self.log_info else '<unknown %s>' % f)
+        return (self.log_info[f] if f in self.log_info else 'UNKNOWN')
 
     def close_log(self):
         if (self.log):
