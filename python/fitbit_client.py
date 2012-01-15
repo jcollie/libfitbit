@@ -90,18 +90,19 @@ class FitBitClient(object):
         self.log_info = {}
         base = FitBitANT(debug=True)
         
-        for retries in (2,1,0):
+        connected = False
+        while not connected:
             try:
-                if not base.open():
-                    print "No devices connected!"
-                    return
+                if base.open():
+                    connected = True
+                else:
+                    print "No devices connected, waiting..."
+                    time.sleep(30)
             except Exception, e:
                 print e
-                if retries:
-                    print "retrying"
-                    time.sleep(5)
-                else:
-                    raise
+                base.close()
+                print "retrying"
+                time.sleep(5)
 
         self.fitbit = FitBit(base)
         self.remote_info = None
