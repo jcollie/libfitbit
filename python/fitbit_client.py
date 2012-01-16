@@ -206,16 +206,14 @@ class FitBitDaemon(object):
             self.errors = 0
 
     def run(self):
-        import sys, os, signal
+        import sys, os
         sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
         self.errors = 0
         
         while self.errors < 3:
-            signal.alarm(300) # safety limit
             self.open_log()
             self.try_sync()
             self.close_log()
-            signal.alarm(0)
             time.sleep(10)
         
         print 'exiting due to earlier failure'
