@@ -4,4 +4,5 @@
 sleep 3
 
 echo Starting
+export PYTHONPATH='/usr/local/lib/python2.6/dist-packages'
 exec python /opt/libfitbit/python/fitbit_client.py 2>&1

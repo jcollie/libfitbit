@@ -46,7 +46,6 @@
 
 import time
 import sys
-sys.path.insert(0, '/usr/local/lib/python2.6/dist-packages')
 import urllib
 import urllib2
 import base64
