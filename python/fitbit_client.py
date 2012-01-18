@@ -140,6 +140,7 @@ class FitBitClient(object):
             else:
                 print "No URL returned. Quitting."
                 break
+        self.fitbit.command_sleep()
         self.fitbit.base.close()
 
 def main():
