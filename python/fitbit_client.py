@@ -214,7 +214,7 @@ class FitBitDaemon(object):
             self.open_log()
             self.try_sync()
             self.close_log()
-            time.sleep(10)
+            time.sleep(3)
         
         print 'exiting due to earlier failure'
         sys.exit(1)
