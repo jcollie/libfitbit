@@ -54,7 +54,7 @@ def hexList(data):
     return map(lambda s: chr(s).encode('HEX'), data)
 
 def hexRepr(data):
-    return repr(hexList(data))
+    return ' '.join(hexList(data)).upper()
 
 def intListToByteList(data):
     return map(lambda i: struct.pack('!H', i)[1], array.array('B', data))
@@ -65,15 +65,18 @@ class ANTStatusException(Exception):
 def log(f):
     def wrapper(self, *args, **kwargs):
         if self._debug:
-            print "Start", f.__name__, args, kwargs
+            print '  '*self._loglevel, "Start", f.__name__, args, kwargs
+        self._loglevel += 1
         try:
             res = f(self, *args, **kwargs)
         except:
             if self._debug:
-                print "Fail", f.__name__
+                print '  '*self._loglevel, "Fail", f.__name__
             raise
+        finally:
+            self._loglevel -= 1
         if self._debug:
-            print "End", f.__name__, res
+            print '  '*self._loglevel, "End", f.__name__, res
         return res
     return wrapper
 
@@ -85,6 +88,7 @@ class ANT(object):
 
         self._state = 0
         self._receiveBuffer = []
+        self._loglevel = 0
 
     def _event_to_string(self, event):
         return { 0:"RESPONSE_NO_ERROR",
@@ -282,7 +286,7 @@ class ANT(object):
         data.append(reduce(operator.xor, data))
 
         if self._debug:
-            print "    sent: " + hexRepr(data)
+            print '  '*self._loglevel, "  ==> " + hexRepr(data)
         return self._send(map(chr, array.array('B', data)))
 
     def _find_sync(self, buf, start=0):
@@ -338,7 +342,7 @@ class ANT(object):
                 continue
             self._receiveBuffer = data[l:]
             if self._debug:
-                print "received: " + hexRepr(p)
+                print '  '*self._loglevel,"  <== " + hexRepr(p)
             return p
 
     def _receive(self, size=4096):
