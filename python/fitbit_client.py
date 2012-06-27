@@ -44,12 +44,13 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #################################################################
 
+import time
 import sys
 import urllib
 import urllib2
 import base64
 import xml.etree.ElementTree as et
-from fitbit import FitBit
+from fitbit import FitBit, FitBitBeaconTimeout
 from antprotocol.bases import FitBitANT, DynastreamANT
 
 class FitBitResponse(object):
@@ -88,6 +89,7 @@ class FitBitClient(object):
 
     def __init__(self):
         self.info_dict = {}
+        self.log_info = {}
         self.fitbit = None
         for base in [bc(debug=self.DEBUG) for bc in self.BASES]:
             for retries in (2,1,0):
@@ -112,6 +114,10 @@ class FitBitClient(object):
             print "No devices connected!"
             exit(1)
 
+    def __del__(self):
+        self.close()
+        self.fitbit = None
+
     def form_base_info(self):
         self.info_dict.clear()
         self.info_dict["beaconType"] = "standard"
@@ -121,6 +127,17 @@ class FitBitClient(object):
         self.info_dict["clientId"] = self.CLIENT_UUID
         if self.remote_info:
             self.info_dict = dict(self.info_dict, **self.remote_info)
+        for f in ['deviceInfo.serialNumber','userPublicId']:
+            if f in self.info_dict:
+                self.log_info[f] = self.info_dict[f]
+
+    def close(self):
+        try:
+            print 'Closing USB device'
+            self.fitbit.base.close()
+            self.fitbit.base = None
+        except AttributeError, e:
+            pass
 
     def run_upload_request(self):
         try:
@@ -154,32 +171,86 @@ class FitBitClient(object):
             raise
 
         self.fitbit.command_sleep()
-        self.fitbit.base.close()
 
-def main():
-    f = FitBitClient()
-    f.run_upload_request()    
-    return 0
+class FitBitDaemon(object):
 
-if __name__ == '__main__':
-    import time
-    import traceback
-    
-    cycle_minutes = 15
-    
-    while True:
+    def __init__(self):
+        self.log_info = {}
+        self.log = None
+
+    def do_sync(self):
+        f = FitBitClient()
+        f.run_upload_request()
+        self.log_info = f.log_info
+
+    def sleep_minutes(mins):
+        for m in range(mins, 0, -1):
+            print time.ctime(), "waiting", m, "minutes and then restarting..."
+            time.sleep(60)
+
+    def try_sync(self):
+        import traceback
+        import usb
+        self.log_info = {}
         try:
-            main()
+            self.do_sync()
+        except FitBitBeaconTimeout, e:
+            # This error is fairly normal, do we don't increase error counter.
+            print e
+        except usb.USBError, e:
+            # Raise this error up the stack, since USB errors are fairly
+            # critical.
+            self.write_log('ERROR: ' + str(e))
+            raise
         except Exception, e:
+            # For other errors, log and increase error counter.
             print "Failed with", e
             print
             print '-'*60
             traceback.print_exc(file=sys.stdout)
             print '-'*60
+            self.write_log('ERROR: ' + str(e))
+            self.errors += 1
         else:
+            # Clear error counter after a successful sync.
             print "normal finish"
-            print time.ctime(), "waiting", cycle_minutes, "minutes and then restarting..."
-            time.sleep(60*cycle_minutes)
-    
-    #sys.exit(main())
+            self.write_log('SUCCESS')
+            self.errors = 0
 
+    def run(self):
+        import sys, os
+        sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+        self.errors = 0
+        
+        while self.errors < 3:
+            self.open_log()
+            self.try_sync()
+            self.close_log()
+            time.sleep(3)
+        
+        print 'exiting due to earlier failure'
+        sys.exit(1)
+
+    #
+    # Logging functions
+    #
+
+    def open_log(self):
+        self.log = open('/var/log/fitbit.log', 'a')
+
+    def write_log(self, s):
+        self.log.write('[%s] [%s -> %s] %s\n' % (time.ctime(), \
+                self.log_field('deviceInfo.serialNumber'), \
+                self.log_field('userPublicId'), s))
+
+    def log_field(self, f):
+        return (self.log_info[f] if f in self.log_info else 'UNKNOWN')
+
+    def close_log(self):
+        if (self.log):
+            self.log.close()
+
+if __name__ == '__main__':
+    FitBitDaemon().run()
+
+# vim: set ts=4 sw=4 expandtab:
