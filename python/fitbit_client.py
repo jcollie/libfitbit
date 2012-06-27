@@ -136,7 +136,7 @@ class FitBitClient(object):
             print 'Closing USB device'
             self.fitbit.base.close()
             self.fitbit.base = None
-        except AttributeError, e:
+        except AttributeError:
             pass
 
     def run_upload_request(self):
