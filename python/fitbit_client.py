@@ -45,6 +45,7 @@
 #################################################################
 
 import time
+import yaml
 import sys
 import urllib
 import urllib2
@@ -54,7 +55,18 @@ from fitbit import FitBit, FitBitBeaconTimeout
 from antprotocol.bases import FitBitANT, DynastreamANT
 
 class FitBitResponse(object):
-    def __init__(self, response):
+
+    def __init__(self, url):
+        self.url = url
+
+    def get_response(self, info_dict):
+        data = urllib.urlencode(info_dict)
+        req = urllib2.urlopen(self.url, data)
+        res = req.read()
+        print res
+        self.init(res)
+
+    def init(self, response):
         self.current_opcode = {}
         self.opcodes = []
         self.root = et.fromstring(response.strip())
@@ -68,16 +80,42 @@ class FitBitResponse(object):
                 # Quick and dirty url encode split
                 self.response = dict([x.split("=") for x in urllib.unquote(self.root.find("response").text).split("&")])
 
-        for opcode in self.root.findall("device/remoteOps/remoteOp"):
-            op = {}
-            op["opcode"] = [ord(x) for x in base64.b64decode(opcode.find("opCode").text)]
-            op["payload"] = None
-            if opcode.find("payloadData").text is not None:
-                op["payload"] = [x for x in base64.b64decode(opcode.find("payloadData").text)]
-            self.opcodes.append(op)
-    
+        for remoteop in self.root.findall("device/remoteOps/remoteOp"):
+            self.opcodes.append(RemoteOp(remoteop))
+
+    def getNext(self):
+        if self.host:
+            return FitBitResponse("http://%s%s" % (self.host, self.path))
+        return None
+
+    def dump(self):
+        ops = []
+        for op in self.opcodes:
+            ops.append(op.dump())
+        return ops
+
     def __repr__(self):
         return "<FitBitResponse object at 0x%x opcode=%s, response=%s>" % (id(self), str(self.opcodes), str(self.response))
+
+class RemoteOp(object):
+    def __init__(self, data):
+        opcode = base64.b64decode(data.find("opCode").text)
+        self.opcode = [ord(x) for x in opcode]
+        self.payload = None
+        if data.find("payloadData").text is not None:
+            payload = base64.b64decode(data.find("payloadData").text)
+            self.payload = [x for x in payload]
+
+    def run(self, fitbit):
+        res = fitbit.run_opcode(self.opcode, self.payload)
+        res = [chr(x) for x in res]
+        self.response = ''.join(res)
+
+    def dump(self):
+        return {'request':
+                {'opcode': self.opcode,
+                'payload': self.payload},
+                'response': self.response}
 
 class FitBitClient(object):
     CLIENT_UUID = "2ea32002-a079-48f4-8020-0badd22939e3"
@@ -97,7 +135,6 @@ class FitBitClient(object):
                     if base.open():
                         print "Found %s base" % (base.NAME,)
                         self.fitbit = FitBit(base)
-                        self.remote_info = None
                         break
                     else:
                         break
@@ -118,15 +155,15 @@ class FitBitClient(object):
         self.close()
         self.fitbit = None
 
-    def form_base_info(self):
+    def form_base_info(self, remote_info=None):
         self.info_dict.clear()
         self.info_dict["beaconType"] = "standard"
         self.info_dict["clientMode"] = "standard"
         self.info_dict["clientVersion"] = "1.0"
         self.info_dict["os"] = "libfitbit"
         self.info_dict["clientId"] = self.CLIENT_UUID
-        if self.remote_info:
-            self.info_dict = dict(self.info_dict, **self.remote_info)
+        if remote_info:
+            self.info_dict = dict(self.info_dict, **remote_info)
         for f in ['deviceInfo.serialNumber','userPublicId']:
             if f in self.info_dict:
                 self.log_info[f] = self.info_dict[f]
@@ -139,36 +176,33 @@ class FitBitClient(object):
         except AttributeError:
             pass
 
-    def run_upload_request(self):
-        try:
-            self.fitbit.init_tracker_for_transfer()
+    def run_request(self, op, index):
+        response = op.run(self.fitbit)
+        residx = "opResponse[%d]" % index
+        statusidx = "opStatus[%d]" % index
+        self.info_dict[residx] = base64.b64encode(op.response)
+        self.info_dict[statusidx] = "success"
 
-            url = self.FITBIT_HOST + self.START_PATH
+    def run_upload_requests(self):
+        self.fitbit.init_tracker_for_transfer()
 
-            # Start the request Chain
-            self.form_base_info()
-            while url is not None:
-                res = urllib2.urlopen(url, urllib.urlencode(self.info_dict)).read()
-                print res
-                r = FitBitResponse(res)
-                self.remote_info = r.response
-                self.form_base_info()
-                op_index = 0
-                for o in r.opcodes:
-                    self.info_dict["opResponse[%d]" % op_index] = base64.b64encode(''.join([chr(x) for x in self.fitbit.run_opcode(o["opcode"], o["payload"])]))
-                    self.info_dict["opStatus[%d]" % op_index] = "success"
-                    op_index += 1
-                urllib.urlencode(self.info_dict)
-                print self.info_dict
-                if r.host:
-                    url = "http://%s%s" % (r.host, r.path)
-                    print url
-                else:
-                    print "No URL returned. Quitting."
-                    break
-        except:
-            self.fitbit.base.close()
-            raise
+        conn = FitBitResponse(self.FITBIT_HOST + self.START_PATH)
+
+        # Start the request Chain
+        self.form_base_info()
+        while conn is not None:
+            conn.get_response(self.info_dict)
+            self.form_base_info(conn.response)
+            op_index = 0
+            for op in conn.opcodes:
+                self.run_request(op, op_index)
+                op_index += 1
+            data = yaml.dump(conn.dump())
+            f = open('response-%d.txt' % int(time.time()), 'w')
+            f.write(data)
+            f.close()
+            print self.info_dict
+            conn = conn.getNext()
 
         self.fitbit.command_sleep()
 
@@ -180,7 +214,11 @@ class FitBitDaemon(object):
 
     def do_sync(self):
         f = FitBitClient()
-        f.run_upload_request()
+        try:
+            f.run_upload_requests()
+        except:
+            f.close()
+            raise
         self.log_info = f.log_info
 
     def sleep_minutes(mins):
