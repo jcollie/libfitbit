@@ -54,7 +54,7 @@ import xml.etree.ElementTree as et
 from fitbit import FitBit, FitBitBeaconTimeout
 from antprotocol.bases import FitBitANT, DynastreamANT
 
-class FitBitResponse(object):
+class FitBitRequest(object):
 
     def __init__(self, url):
         self.url = url
@@ -85,7 +85,7 @@ class FitBitResponse(object):
 
     def getNext(self):
         if self.host:
-            return FitBitResponse("http://%s%s" % (self.host, self.path))
+            return FitBitRequest("http://%s%s" % (self.host, self.path))
         return None
 
     def dump(self):
@@ -95,7 +95,7 @@ class FitBitResponse(object):
         return ops
 
     def __repr__(self):
-        return "<FitBitResponse object at 0x%x opcode=%s, response=%s>" % (id(self), str(self.opcodes), str(self.response))
+        return "<FitBitRequest object at 0x%x opcode=%s, response=%s>" % (id(self), str(self.opcodes), str(self.response))
 
 class RemoteOp(object):
     def __init__(self, data):
@@ -186,7 +186,7 @@ class FitBitClient(object):
     def run_upload_requests(self):
         self.fitbit.init_tracker_for_transfer()
 
-        conn = FitBitResponse(self.FITBIT_HOST + self.START_PATH)
+        conn = FitBitRequest(self.FITBIT_HOST + self.START_PATH)
 
         # Start the request Chain
         self.form_base_info()
@@ -274,7 +274,7 @@ class FitBitDaemon(object):
     #
 
     def open_log(self):
-        self.log = open('/var/log/fitbit.log', 'a')
+        self.log = open('fitbit.log', 'a')
 
     def write_log(self, s):
         self.log.write('[%s] [%s -> %s] %s\n' % (time.ctime(), \
