@@ -104,12 +104,12 @@ class RemoteOp(object):
         self.payload = None
         if data.find("payloadData").text is not None:
             payload = base64.b64decode(data.find("payloadData").text)
-            self.payload = [x for x in payload]
+            self.payload = [ord(x) for x in payload]
 
     def run(self, fitbit):
-        res = fitbit.run_opcode(self.opcode, self.payload)
-        res = [chr(x) for x in res]
-        self.response = ''.join(res)
+        self.response = fitbit.run_opcode(self.opcode, self.payload)
+        res = [chr(x) for x in self.response]
+        return ''.join(res)
 
     def dump(self):
         return {'request':
@@ -180,7 +180,7 @@ class FitBitClient(object):
         response = op.run(self.fitbit)
         residx = "opResponse[%d]" % index
         statusidx = "opStatus[%d]" % index
-        self.info_dict[residx] = base64.b64encode(op.response)
+        self.info_dict[residx] = base64.b64encode(response)
         self.info_dict[statusidx] = "success"
 
     def run_upload_requests(self):

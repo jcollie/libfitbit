@@ -208,7 +208,7 @@ class FitBit(object):
             return []
         return d[8:8+size]
 
-    def run_opcode(self, opcode, payload = None):
+    def run_opcode(self, opcode, payload = []):
         for tries in range(4):
             try:
                 self.send_tracker_packet(opcode)
@@ -222,7 +222,7 @@ class FitBit(object):
                 return self.get_data_bank()
             if data[1] == 0x61:
                 # Send payload data to device
-                if payload is not None:
+                if len(payload) > 0:
                     self.send_tracker_payload(payload)
                     data = self.base.receive_acknowledged_reply()
                     data.pop(0)
@@ -235,8 +235,8 @@ class FitBit(object):
 
     def send_tracker_payload(self, payload):
         # The first packet will be the packet id, the length of the
-        # payload, and ends with the payload CRC
-        p = [0x00, self.gen_packet_id(), 0x80, len(payload), 0x00, 0x00, 0x00, 0x00, reduce(operator.xor, map(ord, payload))]
+        # payload, and ends with the payload checksum
+        p = [0x00, self.gen_packet_id(), 0x80, len(payload), 0x00, 0x00, 0x00, 0x00, reduce(operator.xor, payload)]
         prefix = itertools.cycle([0x20, 0x40, 0x60])
         for i in range(0, len(payload), 8):
             current_prefix = prefix.next()
@@ -245,7 +245,7 @@ class FitBit(object):
                 plist += [(current_prefix + 0x80) | self.base._chan]
             else:
                 plist += [current_prefix | self.base._chan]
-            plist += map(ord, payload[i:i+8])
+            plist += payload[i:i+8]
             while len(plist) < 9:
                 plist += [0x0]
             p += plist
