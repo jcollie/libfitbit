@@ -128,6 +128,8 @@ class FitBitClient(object):
     def __init__(self):
         self.info_dict = {}
         self.log_info = {}
+        self.time = time.time()
+        self.data = []
         self.fitbit = None
         for base in [bc(debug=self.DEBUG) for bc in self.BASES]:
             for retries in (2,1,0):
@@ -169,6 +171,10 @@ class FitBitClient(object):
                 self.log_info[f] = self.info_dict[f]
 
     def close(self):
+        data = yaml.dump(self.data)
+        f = open('connection-%d.txt' % int(self.time), 'w')
+        f.write(data)
+        f.close()
         try:
             print 'Closing USB device'
             self.fitbit.base.close()
@@ -197,11 +203,7 @@ class FitBitClient(object):
             for op in conn.opcodes:
                 self.run_request(op, op_index)
                 op_index += 1
-            data = yaml.dump(conn.dump())
-            f = open('response-%d.txt' % int(time.time()), 'w')
-            f.write(data)
-            f.close()
-            print self.info_dict
+            self.data.append(conn.dump())
             conn = conn.getNext()
 
         self.fitbit.command_sleep()
