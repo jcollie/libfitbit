@@ -50,6 +50,7 @@ import sys
 import urllib
 import urllib2
 import base64
+import argparse
 import xml.etree.ElementTree as et
 from fitbit import FitBit, FitBitBeaconTimeout
 from antprotocol.bases import FitBitANT, DynastreamANT
@@ -257,7 +258,7 @@ class FitBitDaemon(object):
             self.write_log('SUCCESS')
             self.errors = 0
 
-    def run(self):
+    def run(self, args):
         import sys, os
         sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
         self.errors = 0
@@ -266,6 +267,9 @@ class FitBitDaemon(object):
             self.open_log()
             self.try_sync()
             self.close_log()
+            if args.once:
+                print "I'm done"
+                return
             time.sleep(3)
         
         print 'exiting due to earlier failure'
@@ -291,6 +295,9 @@ class FitBitDaemon(object):
             self.log.close()
 
 if __name__ == '__main__':
-    FitBitDaemon().run()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--once", help="Run the request only once", action="store_true")
+    args = parser.parse_args()
+    FitBitDaemon().run(args)
 
 # vim: set ts=4 sw=4 expandtab:
