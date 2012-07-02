@@ -224,11 +224,6 @@ class FitBitDaemon(object):
             raise
         self.log_info = f.log_info
 
-    def sleep_minutes(mins):
-        for m in range(mins, 0, -1):
-            print time.ctime(), "waiting", m, "minutes and then restarting..."
-            time.sleep(60)
-
     def try_sync(self):
         import traceback
         import usb
@@ -236,7 +231,7 @@ class FitBitDaemon(object):
         try:
             self.do_sync()
         except FitBitBeaconTimeout, e:
-            # This error is fairly normal, do we don't increase error counter.
+            # This error is fairly normal, so we don't increase error counter.
             print e
         except usb.USBError, e:
             # Raise this error up the stack, since USB errors are fairly
