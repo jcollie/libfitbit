@@ -100,6 +100,18 @@ def read_bank(index):
      6: tracker.parse_bank6_data,
     }.get(idx, pprint)(data)
 
+@command('erase', 'Erase data bank')
+@checktracker
+def erase_bank(index, tstamp=None):
+    idx = int(index)
+    if tstamp is not None:
+        tstamp = int(tstamp)
+    data = tracker.erase_data_bank(idx, tstamp)
+    if data != [65, 0, 0, 0, 0, 0, 0]:
+        print "Bad", data
+        return
+    print "Done"
+
 while not exit:
     input = raw_input('> ')
     input = input.split(' ')
