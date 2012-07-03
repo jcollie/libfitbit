@@ -65,7 +65,6 @@ class FitBitRequest(object):
         data = urllib.urlencode(info_dict)
         req = urllib2.urlopen(self.url, data)
         res = req.read()
-        print res
         self.init(res)
 
     def init(self, response):
@@ -125,16 +124,15 @@ class FitBitClient(object):
     #FITBIT_HOST = "http://client.fitbit.com:80"
     FITBIT_HOST = "https://client.fitbit.com" # only used for initial request
     START_PATH = "/device/tracker/uploadData"
-    DEBUG = True
     BASES = [FitBitANT, DynastreamANT]
 
-    def __init__(self):
+    def __init__(self, debug=False):
         self.info_dict = {}
         self.log_info = {}
         self.time = time.time()
         self.data = []
         self.fitbit = None
-        for base in [bc(debug=self.DEBUG) for bc in self.BASES]:
+        for base in [bc(debug=debug) for bc in self.BASES]:
             for retries in (2,1,0):
                 try:
                     if base.open():
@@ -178,6 +176,7 @@ class FitBitClient(object):
         f = open('connection-%d.txt' % int(self.time), 'w')
         f.write(data)
         f.close()
+        print data
         try:
             print 'Closing USB device'
             self.fitbit.base.close()
