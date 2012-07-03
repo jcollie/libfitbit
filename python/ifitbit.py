@@ -84,6 +84,22 @@ def get_info():
     tracker.get_tracker_info()
     print tracker
 
+@command('read', 'Read data bank')
+@checktracker
+def read_bank(index):
+    idx = int(index)
+    data = tracker.run_data_bank_opcode(idx)
+    def pprint(data):
+        print ' '.join(["%02X" % x for x in data])
+    {0: tracker.parse_bank0_data,
+     1: tracker.parse_bank1_data,
+     2: tracker.parse_bank2_data,
+#     3: tracker.parse_bank3_data,
+#     4: tracker.parse_bank4_data,
+#     5: tracker.parse_bank5_data,
+     6: tracker.parse_bank6_data,
+    }.get(idx, pprint)(data)
+
 while not exit:
     input = raw_input('> ')
     input = input.split(' ')

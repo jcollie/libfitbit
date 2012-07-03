@@ -285,6 +285,7 @@ class FitBit(object):
         raise ANTReceiveException("Cannot complete data bank")
 
     def parse_bank2_data(self, data):
+        banklen = {(4, 14):16}.get((self.app_major_version, self.app_minor_version), 14)
         for i in range(0, len(data), 13):
             print ["0x%.02x" % x for x in data[i:i+13]]
             # First 4 bytes are seconds from Jan 1, 1970
@@ -319,7 +320,8 @@ class FitBit(object):
                 time_index = time_index + 1        
 
     def parse_bank1_data(self, data):
-        for i in range(0, len(data), 14):
+        banklen = {(4, 14):16}.get((self.app_major_version, self.app_minor_version), 14)
+        for i in range(0, len(data), banklen):
             print ["0x%.02x" % x for x in data[i:i+13]]
             # First 4 bytes are seconds from Jan 1, 1970
             daily_steps = data[i+7] << 8 | data[i+6]
