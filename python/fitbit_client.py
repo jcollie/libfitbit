@@ -49,6 +49,7 @@ import yaml
 import sys
 import urllib
 import urllib2
+import urlparse
 import base64
 import argparse
 import xml.etree.ElementTree as et
@@ -79,7 +80,8 @@ class FitBitRequest(object):
             self.path = self.root.find("response").attrib["path"]
             if self.root.find("response").text:
                 # Quick and dirty url encode split
-                self.response = dict([x.split("=") for x in urllib.unquote(self.root.find("response").text).split("&")])
+                response = self.root.find("response").text
+                self.response = dict(urlparse.parse_qsl(response))
 
         for remoteop in self.root.findall("device/remoteOps/remoteOp"):
             self.opcodes.append(RemoteOp(remoteop))
