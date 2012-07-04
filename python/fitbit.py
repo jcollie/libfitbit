@@ -293,13 +293,6 @@ class FitBit(object):
             data = data + bank
         raise ANTReceiveException("Cannot complete data bank")
 
-    def parse_bank2_data(self, data):
-        banklen = {(4, 14):16}.get((self.app_major_version, self.app_minor_version), 14)
-        for i in range(0, len(data), 13):
-            print ["0x%.02x" % x for x in data[i:i+13]]
-            # First 4 bytes are seconds from Jan 1, 1970
-            print "Time: %s" % (datetime.datetime.fromtimestamp(data[i] | data[i + 1] << 8 | data[i + 2] << 16 | data[i + 3] << 24))
-
     def parse_bank0_data(self, data):
         # First 4 bytes are a time
         i = 0
@@ -337,6 +330,13 @@ class FitBit(object):
             record_date = datetime.datetime.fromtimestamp(data[i] | data[i + 1] << 8 | data[i + 2] << 16 | data[i + 3] << 24)
             print "Time: %s Daily Steps: %d" % (record_date, daily_steps) 
 
+    def parse_bank2_data(self, data):
+        banklen = {(4, 14):16}.get((self.app_major_version, self.app_minor_version), 14)
+        for i in range(0, len(data), 13):
+            print ["0x%.02x" % x for x in data[i:i+13]]
+            # First 4 bytes are seconds from Jan 1, 1970
+            print "Time: %s" % (datetime.datetime.fromtimestamp(data[i] | data[i + 1] << 8 | data[i + 2] << 16 | data[i + 3] << 24))
+
     def parse_bank6_data(self, data):
         i = 0
         tstamp = 0
@@ -350,7 +350,7 @@ class FitBit(object):
             d = data[i:i+4]
             tstamp = d[3] | d[2] << 8 | d[1] << 16 | d[0] << 24
             i += 4
-        
+
 def main():
     #base = DynastreamANT(True)
     base = FitBitANT(debug=True)
