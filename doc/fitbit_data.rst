@@ -21,7 +21,8 @@ analyse of logs of communication between the *tracker* and the
 *service*. See `method of operation`_.
 
 The motivation behind this analyse is at first the intelectual process
-of
+of deciphering data, but as well the will of having full control about
+a tracker I wear day and night, and by such, data about my lifestyle.
 
 Device Description
 ==================
@@ -71,8 +72,60 @@ are read, write, erase and a few others yet to be enciphered.
 Opcodes
 =======
 
-Memory banks
-============
+An opcode is **always** seven bytes long. most of the time, only the
+first few bytes are not zero.
+
+The memory read is not the same as the memory written, even if the
+*index* can be the same.
+
+Get Device Information
+----------------------
+
+:opcode: [0x24, 0 (6 times)]
+:response: [serial, hardrev, bslmaj, bslmin, appmaj, appmin, bslon,
+  onbase]
+
+The response first contains the serial number of the tracker on five
+bytes, then the hardware revision, the BSL major version and minor
+version, the App major version and minor version, if the BSL mode is
+ON, and if the tracker is plugged on the base. Except the serial
+number, every other information is coded on one byte.
+
+Read memory
+-----------
+
+:opcode: [0x22, index, 0 (5 times)]
+:response: data
+
+Where *index* is the index of the memory bank requested.
+
+The response is the content of the memory and its meaning differs from
+memory to memory.
+
+Write memory
+------------
+
+:opcode: [0x23, index, datalen, 0 (4 times) ]
+:payload: data
+:response: [0x41, 0 (6 times)]
+
+Where *index* is the index of the memory to be written, and *datalen* the
+length of the payload.
+
+The content of the payload is index dependant.
+
+Erase memory
+------------
+
+:opcode: [0x25, index, timestamp, 0]
+:response: [0x41, 0 (6 times)]
+
+Where *index* is the index of the memory bank to be erased, and
+*timestamp* (on four bytes, MSB) is the date until which the data
+should be erased.
+
+Read Memory banks
+=================
 
 bank0
 -----
@@ -91,6 +144,31 @@ bank2
 
 bank3
 -----
+
+This bank contains data, but a request to read it is never sent from
+the *fitbit service*.
+
+Data Format
+...........
+
+This bank always contains thirty bytes. The meaning of only the first
+ones is known.
+
+The first five bytes contains the serial number, followed by the
+hardware revision.
+
+Example
+.......
+
+::
+
+  01 02 03 04 05 0C 08 10 08 01 08 00 00 FF D8 00 06 A9 1D 9E 43 6A 3A
+  63 48 83 BA 6E 1D 64
+
+Which can be decoded as follow::
+
+  Serial: 0102030405
+  Hardware revision: 12
 
 bank4
 -----
@@ -129,7 +207,7 @@ timestamp 0x4ff04aff, then two records 0x800a and 0x8014, a timestamp
 again 0x4ff04bef, two records 0x8014 and 0x8014, a timestamp 4ff04cdf
 and one record 0x8014. 
 
-We decode this as follow::
+This can be decoded as follow::
 
   Time: 2012-07-01 15:02:03: 1 Floors
   Time: 2012-07-01 15:05:03: 1 Floors
@@ -138,6 +216,25 @@ We decode this as follow::
   Time: 2012-07-01 15:10:03: 2 Floors
   Time: 2012-07-01 15:13:03: 2 Floors
 
+bank7
+-----
+
+This bank is never requested from the *fitbit service*.
+
+Its content is empty.
+
+Write memory banks
+==================
+
+bank0
+-----
+
+This bank always receives 64 bytes.
+
+bank1
+-----
+
+This bank always receive 16 bytes.
 
 .. _`libfitbit project`: https://github.com/qdot/libfitbit
 .. _`ANT protocol`: something here

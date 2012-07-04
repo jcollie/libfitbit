@@ -78,7 +78,6 @@ class FitBitRequest(object):
             self.host = self.root.find("response").attrib["host"]
             self.path = self.root.find("response").attrib["path"]
             if self.root.find("response").text:
-                # Quick and dirty url encode split
                 response = self.root.find("response").text
                 self.response = dict(urlparse.parse_qsl(response))
 

@@ -137,13 +137,13 @@ class FitBit(object):
         """Returns string representation of tracker information"""
 
         return "Tracker Serial: %s\n" \
-               "Firmware Version: %d\n" \
+               "Hardware Version: %d\n" \
                "BSL Version: %d.%d\n" \
                "APP Version: %d.%d\n" \
                "In Mode BSL? %s\n" \
                "On Charger? %s\n" % \
                ("".join(["%x" % (x) for x in self.serial]),
-                self.firmware_version,
+                self.hardware_version,
                 self.bsl_major_version,
                 self.bsl_minor_version,
                 self.app_major_version,
