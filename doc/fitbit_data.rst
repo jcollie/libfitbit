@@ -127,14 +127,27 @@ should be erased.
 Read Memory banks
 =================
 
+.. _bank0r:
+
 bank0
 -----
+
+This bank contains records about **steps** and **score**.
+
+Data format
+...........
+
+The records are three bytes long. The first always has its MSB
+set. The second byte gives the active score, and the third the steps.
 
 .. note:: Because the timestamp ``0x80000000`` correspond to the 19th
           of January 2038, we might expect the fitbit team to change
           their data format before this date. Until this date, every
           timestamps will not have their MSB set, and the distinction
           between record and timestamps themselves will be easy. 
+
+Example
+.......
 
 bank1
 -----
@@ -173,6 +186,8 @@ Which can be decoded as follow::
 bank4
 -----
 
+This bank is the same as `bank0w`_.
+
 bank5
 -----
 
@@ -186,7 +201,7 @@ Data format
 
 This information is transfered on two bytes, the first byte having its
 MSB set. There is one record per minute, and the records are prefixed
-by a timestamp on four bytes in LSB format (see also `bank0`_). In
+by a timestamp on four bytes in LSB format (see also `bank0r`_). In
 case where more than one minute separates two floor climbing record,
 instead of an empty record, a new timestamp will be inserted before
 the next climbing record. 
@@ -226,10 +241,13 @@ Its content is empty.
 Write memory banks
 ==================
 
+.. _bank0w:
+
 bank0
 -----
 
-This bank always receives 64 bytes.
+This bank always receives 64 bytes. Those bytes are about the device
+settings as set on the web page *Device Settings*.
 
 bank1
 -----
