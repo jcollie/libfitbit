@@ -76,7 +76,7 @@ class FitBitBeaconTimeout(Exception):
 class FitBit(object):
     """Class to represent the fitbit tracker device, the portion of
     the fitbit worn by the user. Stores information about the tracker
-    (serial number, firmware version, etc...).
+    (serial number, hardware version, etc...).
 
     """
 
@@ -95,8 +95,8 @@ class FitBit(object):
         self.current_packet_id = None
         #: serial number of the tracker
         self.serial = None
-        #: firmware version loaded on the tracker
-        self.firmware_version = None
+        #: hardware version loaded on the tracker
+        self.hardware_version = None
         #: Major version of BSL (?)
         self.bsl_major_version = None
         #: Minor version of BSL (?)
@@ -125,7 +125,7 @@ class FitBit(object):
         """Parses the information gotten from the 0x24 retrieval command"""
         
         self.serial = data[0:5]
-        self.firmware_version = data[5]
+        self.hardware_version = data[5]
         self.bsl_major_version = data[6]
         self.bsl_minor_version = data[7]
         self.app_major_version = data[8]

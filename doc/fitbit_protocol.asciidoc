@@ -199,7 +199,7 @@ listed below):
 - Client contacts website at /device/tracker/uploadData, sends basic
   client and platform information
 - Website replies with opcode for tracker data request
-- Client gets tracker data (serial number, firmware version, etc...),
+- Client gets tracker data (serial number, hardware revision, etc...),
   sends base response. Sends to /device/tracker/dumpData/lookupTracker
 - Website replies with website tracker and user ids based on tracker
   serial number, and opcodes for data dumping
@@ -389,7 +389,7 @@ the tracker for information about itself.
 Taking the last two Device Data Portions:
 
 * Bytes 0-4 (G) - 5 byte Device Serial Number
-* Byte 5 (H) - Firmware Version
+* Byte 5 (H) - Hardware revision
 * Byte 6 (I) - BSL Major Version
 * Byte 7 (J) - BSL Minor Version (i.e. II.JJ = bsl version)
 * Byte 8 (K) - App Major Version
