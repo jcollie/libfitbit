@@ -322,20 +322,46 @@ class FitBit(object):
                 time_index = time_index + 1        
 
     def parse_bank1_data(self, data):
-        banklen = {(4, 14):16}.get((self.app_major_version, self.app_minor_version), 14)
+        ultra = self.hardware_version >= 12
+        banklen = {12:16}.get(self.hardware_version, 14)
         for i in range(0, len(data), banklen):
-            print ["0x%.02x" % x for x in data[i:i+13]]
+            d = data[i:i+banklen]
             # First 4 bytes are seconds from Jan 1, 1970
-            daily_steps = data[i+7] << 8 | data[i+6]
-            record_date = datetime.datetime.fromtimestamp(data[i] | data[i + 1] << 8 | data[i + 2] << 16 | data[i + 3] << 24)
-            print "Time: %s Daily Steps: %d" % (record_date, daily_steps) 
+            maybe_calories = d[5] << 8| d[4]
+            daily_steps = d[9] << 24 | d[8] << 16 | d[7] << 8 | d[6]
+            daily_dist = (d[13] << 24 | d[12] << 16 | d[11] << 8 | d[10]) / 1000000.
+            daily_floors = 0
+            if ultra:
+                daily_floors = (d[15] << 8 | d[14]) / 10
+            record_date = datetime.datetime.fromtimestamp(d[0] | d[1] << 8 | d[2] << 16 | d[3] << 24)
+            print "Time: %s %d Daily Steps: %d, Daily distance: %fkm Daily floors: %d" % (
+                record_date, maybe_calories, daily_steps, daily_dist, daily_floors)
 
     def parse_bank2_data(self, data):
-        banklen = {(4, 14):16}.get((self.app_major_version, self.app_minor_version), 14)
-        for i in range(0, len(data), 13):
-            print ["0x%.02x" % x for x in data[i:i+13]]
+        ultra = self.hardware_version >= 12
+        banklen = {12:15}.get(self.hardware_version, 13)
+        for i in range(0, len(data), banklen):
+            d = data[i:i+banklen]
             # First 4 bytes are seconds from Jan 1, 1970
-            print "Time: %s" % (datetime.datetime.fromtimestamp(data[i] | data[i + 1] << 8 | data[i + 2] << 16 | data[i + 3] << 24))
+            print "Time: %s" % (datetime.datetime.fromtimestamp(d[0] | d[1] << 8 | d[2] << 16 | d[3] << 24))
+            if d[6] == 1:
+                elapsed = (d[5] << 8) | d[4]
+                steps = (d[9]<< 16) | (d[8] << 8) | d[7]
+                dist = (d[12] << 16) | (d[11]<< 8) | d[10]
+                foors = 0
+                if ultra:
+                    floors = ((d[14] << 8) | d[13]) / 10
+                print "Activity summary: duration: %s, %d steps, %fkm, %d floors" % (
+                    datetime.timedelta(seconds=elapsed), steps, dist / 100000., floors / 10)
+            else:
+                print ' '.join(['%02X' % x for x in d[4:]])
+
+
+    def parse_bank4_data(self, data):
+        assert len(data) == 64
+        print ' '.join(["0x%.02x" % x for x in data[:24]])
+        print "Greeting : ", ''.join([chr(x) for x in data[24:24+8]])
+        print "Chatter: ", ', '.join([''.join([chr(x) for x in data[i:i+8]]) for i in range(34, 64, 10)])
 
     def parse_bank6_data(self, data):
         i = 0
@@ -350,6 +376,16 @@ class FitBit(object):
             d = data[i:i+4]
             tstamp = d[3] | d[2] << 8 | d[1] << 16 | d[0] << 24
             i += 4
+
+    def write_settings(self, options ,greetings = "", chatter = []):
+        greeting = greeting.ljust( 8, '\0')
+        for i in range(max(len(chatter), 3)):
+            chatter[i] = chatter[i].ljust(8, '\0')
+        
+        self.write_bank(0, payload)
+
+    def write_bank(self, index, data):
+        self.run_opcode([0x25, index, len(data), 0,0,0,0], data)
 
 def main():
     #base = DynastreamANT(True)

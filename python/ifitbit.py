@@ -27,6 +27,7 @@ def print_help():
 
 from antprotocol.bases import FitBitANT
 from fitbit import FitBit
+import time
 
 base = None
 tracker = None
@@ -58,7 +59,7 @@ def init(*args):
 def close():
     global base, tracker
     if base is not None:
-        print "Closing connctions"
+        print "Closing connection"
         base.close()
     base = None
     tracker = None
@@ -95,10 +96,20 @@ def read_bank(index):
      1: tracker.parse_bank1_data,
      2: tracker.parse_bank2_data,
 #     3: tracker.parse_bank3_data,
-#     4: tracker.parse_bank4_data,
+     4: tracker.parse_bank4_data,
 #     5: tracker.parse_bank5_data,
      6: tracker.parse_bank6_data,
     }.get(idx, pprint)(data)
+
+@command('pr5', 'Periodic read 5')
+@checktracker
+def pr5(sleep = '5', repeat = '100'):
+    sleep = int(sleep)
+    repeat = int(repeat)
+    while repeat > 0:
+        read_bank(5)
+        time.sleep(sleep)
+        repeat -= 1
 
 @command('erase', 'Erase data bank')
 @checktracker

@@ -149,11 +149,89 @@ set. The second byte gives the active score, and the third the steps.
 Example
 .......
 
+.. _bank1r:
+
 bank1
 -----
 
+This bank is about the **daily statistics**. However, a new record
+with the current data is appended each time the bank is being read, or
+the clock switch to another day (midnight).
+
+Data format
+...........
+
+Each record is 16 bytes long and starts with a timestamp on four
+bytes. Follows then XX, steps, distance and 10 x floors. Both steps
+and distance are stored on four bytes, the first one (probably
+something with calories) and the floors are on two bytes. The unit
+used for the distance is the centimeter.
+
+.. note:: On the first version of the fitbit tracker (**not** Ultra),
+          the records are 14 bytes long as they miss the last two
+          bytes about the amount of floors climbed.
+
+.. note:: The midnight records, are registered with the date of the
+          next day. A record for ``2012-07-07 00:00:00`` is actually
+          about the 6th of July.
+
+Example:
+........
+
+::
+
+   60 A0 05 50 9C 41 53 19 00 00 31 E5 49 00 1E 00
+
+Which can be interpreted as follow:
+
+- ``0x5005a060``: 2012-07-17 19:26:56
+- ``0x419c``: 16796 : approximately 1845 calories (*.1103 - 7)
+- ``0x00001953``: 6483 steps
+- ``0x0049e531``: 4.842801km
+- ``0x001E``: 3 floors
+
 bank2
 -----
+
+This bank is about **recorded activities**.
+
+Data format
+...........
+
+Records are 15 bytes long, they are prefixed with a timestamp on four bytes.
+
+The record can be categorized in multiple kinds. Their kind is decided
+by the value of the byte 6.
+
+Value of 1:
+
+    This is a stop of the recorded activity. the record will contain
+    information about the length of the activity, the steps, the
+    floors, and more.
+
+Value of 2:
+
+    This one seems to always go in pair with the value of 3.
+
+Value of 3:
+
+    This one seems to always go in pair with the value of 2, A record
+    with a value of 2 usually follow two seconds after the record with
+    a value of 3.
+
+Value of 4:
+
+   Not found yet
+
+Value of 5:
+
+   This means a start of the activity if all fields are set to 0,
+   else, the meaning is still to be discovered.
+
+Example
+.......
+
+
 
 bank3
 -----
@@ -190,6 +268,13 @@ This bank is the same as `bank0w`_.
 
 bank5
 -----
+
+* This bank is one of the few without timestamps
+* This bank is not related to the amount of steps.
+* An erase has an effect on the data, however, the values don't go
+  to 0.
+* This bank is always 14 bytes long.
+
 
 bank6
 -----
@@ -247,7 +332,32 @@ bank0
 -----
 
 This bank always receives 64 bytes. Those bytes are about the device
-settings as set on the web page *Device Settings*.
+settings as set on the web page *Device Settings* and *Profile
+Settings*.
+
+Data format
+...........
+
+The following information is to prefix with a big **it looks
+like... ** as those are only estimation based on different seen
+values.
+
+* First four bytes are always zero
+* Then are some bytes about yourself:
+  - length
+  - preferred unit
+  - stride length
+  - gender
+  - time zone
+* what should be displayed on the tracker
+  - greeting on/off
+  - left hand / right hand
+  - clock format
+* 7 zeros
+* options displayed on tracker
+* the greeting name (10 bytes), right padded with 2 zeros
+* the three chatter texts (3 x 10 bytes). each right padded with 2
+  zeros
 
 bank1
 -----
