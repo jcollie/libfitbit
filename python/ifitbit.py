@@ -40,6 +40,14 @@ def checktracker(fn):
         return fn(*args)
     return wrapped
 
+def checkinfo(fn):
+    def wrapped(*args):
+        if tracker.hardware_version is None:
+            print "You first need to request the tracker info (info)"
+            return
+        return fn(*args)
+    return wrapped
+
 @command('init', 'Initialize the tracker')
 def init(*args):
     global tracker, base
@@ -87,6 +95,7 @@ def get_info():
 
 @command('read', 'Read data bank')
 @checktracker
+@checkinfo
 def read_bank(index):
     idx = int(index)
     data = tracker.run_data_bank_opcode(idx)
