@@ -44,6 +44,7 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #################################################################
 
+import os
 import time
 import yaml
 import sys
@@ -157,9 +158,12 @@ class FitBitClient(object):
 
     def close(self):
         data = yaml.dump(self.data)
-        f = open('connection-%d.txt' % int(self.time), 'w')
-        f.write(data)
-        f.close()
+        if 'userPublicId' in self.log_info:
+            if not os.path.isdir(self.log_info['userPublicId']):
+                os.makedirs(self.log_info['userPublicId'])
+            f = open(os.path.join(self.log_info['userPublicId'],'connection-%d.txt' % int(self.time)), 'w')
+            f.write(data)
+            f.close()
         print data
         try:
             print 'Closing USB device'
