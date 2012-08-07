@@ -2,6 +2,21 @@ from .protocol import ANTReceiveException
 from .libusb import ANTlibusb
 import usb
 
+def getBase(debug):
+    for base in [bc(debug=debug) for bc in BASES]:
+        for retries in (2,1,0):
+            try:
+                if base.open():
+                    print "Found %s base" % (base.NAME,)
+                    return base
+            except Exception, e:
+                print e
+                if retries:
+                    print "retrying"
+                    time.sleep(5)
+                    continue
+                raise
+
 class DynastreamANT(ANTlibusb):
     """Class that represents the Dynastream USB stick base, for
     garmin/suunto equipment. Only needs to set VID/PID.
@@ -53,3 +68,5 @@ class FitBitANT(ANTlibusb):
             self._receive()
         except usb.USBError:
             pass
+
+BASES = [FitBitANT, DynastreamANT]

@@ -54,7 +54,7 @@ import base64
 import argparse
 import xml.etree.ElementTree as et
 from fitbit import FitBit, FitBitBeaconTimeout
-from antprotocol.bases import FitBitANT, DynastreamANT
+from antprotocol.bases import getBase
 
 class FitBitRequest(object):
 
@@ -123,32 +123,17 @@ class FitBitClient(object):
     #FITBIT_HOST = "http://client.fitbit.com:80"
     FITBIT_HOST = "https://client.fitbit.com" # only used for initial request
     START_PATH = "/device/tracker/uploadData"
-    BASES = [FitBitANT, DynastreamANT]
 
     def __init__(self, debug=False):
         self.info_dict = {}
         self.log_info = {}
         self.time = time.time()
         self.data = []
-        self.fitbit = None
-        for base in [bc(debug=debug) for bc in self.BASES]:
-            for retries in (2,1,0):
-                try:
-                    if base.open():
-                        print "Found %s base" % (base.NAME,)
-                        self.fitbit = FitBit(base)
-                        break
-                    else:
-                        break
-                except Exception, e:
-                    print e
-                    if retries:
-                        print "retrying"
-                        time.sleep(5)
-            else:
-                raise
-            if self.fitbit:
-                break
+        base = getBase(debug)
+        if not base:
+            print "No base found!"
+            exit(1)
+        self.fitbit = FitBit(base)
         if not self.fitbit:
             print "No devices connected!"
             exit(1)
@@ -254,7 +239,6 @@ class FitBitDaemon(object):
             self.errors = 0
 
     def run(self, args):
-        import sys, os
         sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
         self.errors = 0
         

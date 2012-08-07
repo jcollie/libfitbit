@@ -67,7 +67,7 @@
 # - Implementing data clearing
 
 import itertools, sys, random, operator, datetime, time
-from antprotocol.bases import FitBitANT, DynastreamANT
+from antprotocol.bases import getBase
 from antprotocol.protocol import ANTReceiveException
 
 class FitBitBeaconTimeout(Exception):
@@ -388,8 +388,7 @@ class FitBit(object):
         self.run_opcode([0x25, index, len(data), 0,0,0,0], data)
 
 def main():
-    #base = DynastreamANT(True)
-    base = FitBitANT(debug=True)
+    base = getBase(True)
     if not base.open():
         print "No devices connected!"
         return 1

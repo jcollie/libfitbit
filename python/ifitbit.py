@@ -25,7 +25,7 @@ def print_help():
     for cmd in sorted(helps.keys()):
         print '%s\t%s' % (cmd, helps[cmd])
 
-from antprotocol.bases import FitBitANT
+from antprotocol.bases import getBase
 from fitbit import FitBit
 import time
 
@@ -55,7 +55,7 @@ def init(*args):
     if len(args) >= 1:
         debug = bool(int(args[0]))
         if debug: print "Debug ON"
-    base = FitBitANT(debug=debug)
+    base = getBase(debug)
     if not base.open():
         print "No device connected."
         base = None
