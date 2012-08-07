@@ -190,13 +190,12 @@ class FitBit(object):
     def wait_for_beacon(self):
         # FitBit device initialization
         for tries in range(60):
-            print "Waiting for receive"
-            try:
-                d = self.base._receive_message()
-                if d[2] == 0x4E:
-                    return
-            except Exception:
-                pass
+            print "Waiting for beacon"
+            d = self.base._receive_message()
+            if d: print d
+            if d and d[2] == 0x4E:
+                print "Got it."
+                return
         raise FitBitBeaconTimeout("Timeout waiting for beacon, will restart")
 
     def _get_tracker_burst(self):
