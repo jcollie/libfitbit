@@ -131,7 +131,7 @@ class FitBitClient(object):
         self.time = time.time()
         self.data = []
         base = getBase(debug)
-        if not base:
+        if base is None:
             print "No base found!"
             exit(1)
         self.fitbit = FitBit(base)

@@ -56,9 +56,8 @@ def init(*args):
         debug = bool(int(args[0]))
         if debug: print "Debug ON"
     base = getBase(debug)
-    if not base.open():
+    if base is None:
         print "No device connected."
-        base = None
         return
     tracker = FitBit(base)
     tracker.init_tracker_for_transfer()

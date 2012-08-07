@@ -388,7 +388,7 @@ class FitBit(object):
 
 def main():
     base = getBase(True)
-    if not base.open():
+    if base is None:
         print "No devices connected!"
         return 1
 
