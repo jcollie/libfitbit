@@ -131,14 +131,14 @@ class ANT(object):
                 return
         raise ANTStatusException("Failed to detect reset response")
 
-    def _check_ok_response(self):
+    def _check_ok_response(self, msgid):
         # response packets will always be 7 bytes
         status = self._receive_message()
 
         if len(status) == 0:
             raise ANTStatusException("No message response received!")
 
-        if status[2] == 0x40 and status[5] == 0x0:
+        if status[2] == 0x40 and status[4] == msgid and status[5] == 0x0:
             return
 
         raise ANTStatusException("Message status %d does not match 0x0 (NO_ERROR)" % (status[5]))
@@ -163,47 +163,47 @@ class ANT(object):
     @log
     def set_channel_frequency(self, freq):
         self._send_message(0x45, self._chan, freq)
-        self._check_ok_response()
+        self._check_ok_response(0x45)
 
     @log
     def set_transmit_power(self, power):
         self._send_message(0x47, 0x0, power)
-        self._check_ok_response()
+        self._check_ok_response(0x47)
 
     @log
     def set_search_timeout(self, timeout):
         self._send_message(0x44, self._chan, timeout)
-        self._check_ok_response()
+        self._check_ok_response(0x44)
 
     @log
     def send_network_key(self, network, key):
         self._send_message(0x46, network, key)
-        self._check_ok_response()
+        self._check_ok_response(0x46)
 
     @log
     def set_channel_period(self, period):
         self._send_message(0x43, self._chan, period)
-        self._check_ok_response()
+        self._check_ok_response(0x43)
 
     @log
     def set_channel_id(self, id):
         self._send_message(0x51, self._chan, id)
-        self._check_ok_response()
+        self._check_ok_response(0x51)
 
     @log
     def open_channel(self):
         self._send_message(0x4b, self._chan)
-        self._check_ok_response()
+        self._check_ok_response(0x4b)
 
     @log
     def close_channel(self):
         self._send_message(0x4c, self._chan)
-        self._check_ok_response()
+        self._check_ok_response(0x4c)
 
     @log
     def assign_channel(self):
         self._send_message(0x42, self._chan, 0x00, 0x00)
-        self._check_ok_response()
+        self._check_ok_response(0x42)
 
     @log
     def receive_acknowledged_reply(self, size = 13):
