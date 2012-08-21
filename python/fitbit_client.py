@@ -152,26 +152,31 @@ class FitBitClient(object):
         self.info_dict["os"] = "libfitbit"
         self.info_dict["clientId"] = self.CLIENT_UUID
         if remote_info:
-            self.info_dict = dict(self.info_dict, **remote_info)
+            self.info_dict.update(remote_info)
         for f in ['deviceInfo.serialNumber','userPublicId']:
             if f in self.info_dict:
                 self.log_info[f] = self.info_dict[f]
 
-    def close(self):
+    def dump_connection(self, directory='~/.fitbit'):
+        directory = os.path.expanduser(directory)
         data = yaml.dump(self.data)
         if 'userPublicId' in self.log_info:
-            if not os.path.isdir(self.log_info['userPublicId']):
-                os.makedirs(self.log_info['userPublicId'])
-            f = open(os.path.join(self.log_info['userPublicId'],'connection-%d.txt' % int(self.time)), 'w')
+            directory = os.path.join(directory, self.log_info['userPublicId'])
+            if not os.path.isdir(directory):
+                os.makedirs(directory)
+            f = open(os.path.join(directory,'connection-%d.txt' % int(self.time)), 'w')
             f.write(data)
             f.close()
         print data
+
+    def close(self):
+        self.dump_connection()
+        print 'Closing USB device'
         try:
-            print 'Closing USB device'
             self.fitbit.base.close()
-            self.fitbit.base = None
         except AttributeError:
             pass
+        self.fitbit.base = None
 
     def run_request(self, op, index):
         response = op.run(self.fitbit)
