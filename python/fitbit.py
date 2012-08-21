@@ -68,7 +68,7 @@
 
 import itertools, sys, random, operator, datetime, time
 from antprotocol.bases import getBase
-from antprotocol.protocol import ANTException, ReceiveException, SendException
+from antprotocol.protocol import ANTException, ReceiveException, SendException, NoMessageException
 
 class FitBitBeaconTimeout(ReceiveException):
    pass
@@ -191,9 +191,11 @@ class FitBit(object):
         # FitBit device initialization
         for tries in range(60):
             print "Waiting for beacon"
-            d = self.base._receive_message()
-            if d: print d
-            if d and d[2] == 0x4E:
+            try:
+                msg = self.base._receive_message()
+            except NoMessageException:
+               continue
+            if msg.id == 0x4E:
                 print "Got it."
                 return
         raise FitBitBeaconTimeout("Timeout waiting for beacon, will restart")
@@ -224,12 +226,10 @@ class FitBit(object):
                 if len(payload) > 0:
                     self.send_tracker_payload(payload)
                     data = self.base.receive_acknowledged_reply()
-                    data.pop(0)
-                    return data
+                    return data[1:]
                 raise SendException("run_opcode: opcode %s, no payload" % (opcode))
             if data[1] == 0x41:
-                data.pop(0)
-                return data
+                return data[1:]
         raise ANTException("Failed to run opcode %s" % (opcode))
 
     def send_tracker_payload(self, payload):

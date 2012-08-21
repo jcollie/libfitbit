@@ -45,6 +45,7 @@
 #
 
 import operator, struct, array, time
+from message import MessageIN, MessageOUT
 
 class ANTException(Exception):
     """ Our Base Exception class """
@@ -52,6 +53,8 @@ class ANTException(Exception):
 class ReceiveException(ANTException): pass
 
 class StatusException(ReceiveException): pass
+
+class NoMessageException(ReceiveException): pass
 
 class SendException(ANTException): pass
 
@@ -126,24 +129,21 @@ class ANT(object):
     def _check_reset_response(self, status):
         for tries in range(8):
             try:
-                data = self._receive_message()
+                msg = self._receive_message()
             except ReceiveException:
                 continue
-            if len(data) > 3 and data[2] == 0x6f and data[3] == status:
+            if msg.id == 0x6f and msg.data[0] == status:
                 return
         raise StatusException("Failed to detect reset response")
 
     def _check_ok_response(self, msgid):
         # response packets will always be 7 bytes
-        status = self._receive_message()
+        msg = self._receive_message()
 
-        if len(status) == 0:
-            raise StatusException("No message response received!")
-
-        if status[2] == 0x40 and status[4] == msgid and status[5] == 0x0:
+        if msg.id == 0x40 and msg.data[1:3] == [msgid, 0x00]:
             return
 
-        raise StatusException("Message status %d does not match 0x0 (NO_ERROR)" % (status[5]))
+        raise StatusException("Message status %d does not match 0x0 (NO_ERROR)" % (msg.data[2]))
 
     @log
     def reset(self):
@@ -210,21 +210,21 @@ class ANT(object):
     @log
     def receive_acknowledged_reply(self, size = 13):
         for tries in range(30):
-            status = self._receive_message(size)
-            if len(status) > 4 and status[2] == 0x4F:
-                return status[4:-1]
+            msg = self._receive_message(size)
+            if msg.len > 0 and msg.id == 0x4F:
+                return msg.data[1:]
         raise ReceiveException("Failed to receive acknowledged reply")
 
     @log
     def _check_tx_response(self, maxtries = 16):
         for msgs in range(maxtries):
-            status = self._receive_message()
-            if len(status) > 5 and status[2] == 0x40:
-                if status[5] == 0x0a: # TX Start
+            msg = self._receive_message()
+            if msg.len > 1 and msg.id == 0x40:
+                if msg.data[2] == 0x0a: # TX Start
                     continue
-                if status[5] == 0x05: # TX successful
+                if msg.data[2] == 0x05: # TX successful
                     return
-                if status[5] == 0x06: # TX failed
+                if msg.data[2] == 0x06: # TX failed
                     raise ReceiveException("Transmission Failed")
         raise ReceiveException("No Transmission Ack Seen")
 
@@ -247,15 +247,15 @@ class ANT(object):
     def _check_burst_response(self):
         response = []
         for tries in range(128):
-            status = self._receive_message()
-            if len(status) > 5 and status[2] == 0x40 and status[5] == 0x4:
+            msg = self._receive_message()
+            if msg.len > 1 and msg.id == 0x40 and msg.data[2] == 0x4:
                 raise ReceiveException("Burst receive failed by event!")
-            elif len(status) > 4 and status[2] == 0x4f:
-                response = response + status[4:-1]
+            elif msg.len > 0 and msg.id == 0x4f:
+                response = response + msg.data[1:]
                 return response
-            elif len(status) > 4 and status[2] == 0x50:
-                response = response + status[4:-1]
-                if status[3] & 0x80:
+            elif msg.len > 0 and msg.id == 0x50:
+                response = response + msg.data[1:]
+                if msg.data[0] & 0x80:
                     return response
         raise ReceiveException("Burst receive failed to detect end")
 
@@ -274,22 +274,13 @@ class ANT(object):
         if len(instring) > 8:
             raise "string is too big"
 
-        return self._send_message(*[0x4e] + list(struct.unpack('%sB' % len(instring), instring)))
+        return self._send_message(0x4e, list(struct.unpack('%sB' % len(instring), instring)))
 
-    def _send_message(self, *args):
-        data = list()
-        for l in list(args):
-            if isinstance(l, list):
-                data = data + l
-            else:
-                data.append(l)
-        data.insert(0, len(data) - 1)
-        data.insert(0, 0xa4)
-        data.append(reduce(operator.xor, data))
-
+    def _send_message(self, msgid, *args):
+        msg = MessageOUT(msgid, *args)
         if self._debug:
-            print '  '*self._loglevel, "  ==> " + hexRepr(data)
-        return self._send(map(chr, array.array('B', data)))
+            print '  '*self._loglevel, msg
+        return self._send(msg.toBytes())
 
     def _find_sync(self, buf, start=0):
         i = 0;
@@ -325,7 +316,7 @@ class ANT(object):
                         if len(data) == 0:
                             # Failed to find anything..
                             self._receiveBuffer = []
-                            return []
+                            raise NoMessageException()
                 continue
             data = self._find_sync(data)
             if len(data) < l: continue
@@ -336,16 +327,16 @@ class ANT(object):
             l = data[1] + 4
             if len(data) < l:
                 continue
-            p = data[0:l]
-            if reduce(operator.xor, p) != 0:
+            msg = MessageIN(data[:l])
+            if not msg.check_CS():
                 if self._debug:
                     print "Checksum error for proposed packet: " + hexRepr(p)
                 data = self._find_sync(data, 1)
                 continue
             self._receiveBuffer = data[l:]
             if self._debug:
-                print '  '*self._loglevel,"  <== " + hexRepr(p)
-            return p
+                print '  '*self._loglevel, msg
+            return msg
 
     def _receive(self, size=4096):
         raise NotImplementedError("Need to define _receive function for ANT child class!")
