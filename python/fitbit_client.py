@@ -105,6 +105,7 @@ class RemoteOp(object):
         opcode = base64.b64decode(data.find("opCode").text)
         self.opcode = [ord(x) for x in opcode]
         self.payload = None
+        self.response = None
         if data.find("payloadData").text is not None:
             payload = base64.b64decode(data.find("payloadData").text)
             self.payload = [ord(x) for x in payload]
@@ -179,11 +180,18 @@ class FitBitClient(object):
         self.fitbit.base = None
 
     def run_request(self, op, index):
-        response = op.run(self.fitbit)
         residx = "opResponse[%d]" % index
         statusidx = "opStatus[%d]" % index
+        try:
+            response = op.run(self.fitbit)
+            status = "success"
+        except ANTException:
+            print "failed ..."
+            response = ''
+            status = "error"
         self.info_dict[residx] = base64.b64encode(response)
-        self.info_dict[statusidx] = "success"
+        self.info_dict[statusidx] = status
+        return status = "success"
 
     def run_upload_requests(self):
         self.fitbit.init_tracker_for_transfer()
