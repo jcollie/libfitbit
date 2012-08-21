@@ -200,12 +200,13 @@ class FitBitClient(object):
 
 class FitBitDaemon(object):
 
-    def __init__(self):
+    def __init__(self, debug):
         self.log_info = {}
         self.log = None
+        self.debug = debug
 
     def do_sync(self):
-        f = FitBitClient()
+        f = FitBitClient(self.debug)
         try:
             f.run_upload_requests()
         except:
@@ -280,7 +281,8 @@ class FitBitDaemon(object):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", help="Run the request only once", action="store_true")
+    parser.add_argument("--debug", help="Display debug information", action="store_true")
     args = parser.parse_args()
-    FitBitDaemon().run(args)
+    FitBitDaemon(args.debug).run(args)
 
 # vim: set ts=4 sw=4 expandtab:
