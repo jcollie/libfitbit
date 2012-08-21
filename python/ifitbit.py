@@ -1,5 +1,7 @@
 #! /usr/bin/env python
 
+import traceback, sys
+
 exit = False
 
 cmds = {}
@@ -145,6 +147,7 @@ while not exit:
     except Exception, e:
         # We need that to be able to close the connection nicely
         print "BaD bAd BAd", e
+        traceback.print_exc(file=sys.stdout)
         exit = True
 
 close()
