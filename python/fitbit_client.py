@@ -54,9 +54,9 @@ import urlparse
 import base64
 import argparse
 import xml.etree.ElementTree as et
-from fitbit import FitBit, FitBitBeaconTimeout
+from fitbit import FitBit
 from antprotocol.bases import getBase
-from antprotocol.exception import ANTException
+from antprotocol.protocol import ANTException, FitBitBeaconTimeout
 
 class FitBitRequest(object):
 

@@ -44,7 +44,7 @@
 # Added to and untwistedized and fixed up by Kyle Machulis <kyle@nonpolynomial.com>
 #
 
-import operator, struct, array, time
+import struct, array, time
 from message import MessageIN, MessageOUT
 
 class ANTException(Exception):
@@ -55,6 +55,8 @@ class ReceiveException(ANTException): pass
 class StatusException(ReceiveException): pass
 
 class NoMessageException(ReceiveException): pass
+
+class FitBitBeaconTimeout(ReceiveException): pass
 
 class SendException(ANTException): pass
 
@@ -140,10 +142,10 @@ class ANT(object):
         # response packets will always be 7 bytes
         msg = self._receive_message()
 
-        if msg.id == 0x40 and msg.data[1:3] == [msgid, 0x00]:
+        if msg.id == 0x40 and msg.len == 3 and msg.data[1:3] == [msgid, 0x00]:
             return
 
-        raise StatusException("Message status %d does not match 0x0 (NO_ERROR)" % (msg.data[2]))
+        raise StatusException("Message status %s does not match 0x0, 0x%x, 0x0 (NO_ERROR)" % (msg.data, msgid))
 
     @log
     def reset(self):
@@ -227,6 +229,20 @@ class ANT(object):
                 if msg.data[2] == 0x06: # TX failed
                     raise ReceiveException("Transmission Failed")
         raise ReceiveException("No Transmission Ack Seen")
+
+    @log
+    def receive_bdcast(self):
+        # FitBit device initialization
+        for tries in range(60):
+            print "Waiting for beacon"
+            try:
+                msg = self._receive_message()
+            except NoMessageException:
+               continue
+            if msg.id == 0x4E:
+                print "Got it."
+                return
+        raise FitBitBeaconTimeout("Timeout waiting for beacon, will restart")
 
     @log
     def _send_burst_data(self, data, sleep = None):
@@ -330,9 +346,10 @@ class ANT(object):
             msg = MessageIN(data[:l])
             if not msg.check_CS():
                 if self._debug:
-                    print "Checksum error for proposed packet: " + hexRepr(p)
+                    print "Checksum error for proposed packet: ", msg
                 data = self._find_sync(data, 1)
                 continue
+            # save the rest for later
             self._receiveBuffer = data[l:]
             if self._debug:
                 print '  '*self._loglevel, msg

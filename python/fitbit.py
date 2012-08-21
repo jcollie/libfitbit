@@ -68,10 +68,7 @@
 
 import itertools, sys, random, operator, datetime, time
 from antprotocol.bases import getBase
-from antprotocol.protocol import ANTException, ReceiveException, SendException, NoMessageException
-
-class FitBitBeaconTimeout(ReceiveException):
-   pass
+from antprotocol.protocol import ANTException, ReceiveException, SendException
 
 class FitBit(object):
     """Class to represent the fitbit tracker device, the portion of
@@ -188,17 +185,7 @@ class FitBit(object):
         self.base.send_acknowledged_data([0x7f, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3c])
 
     def wait_for_beacon(self):
-        # FitBit device initialization
-        for tries in range(60):
-            print "Waiting for beacon"
-            try:
-                msg = self.base._receive_message()
-            except NoMessageException:
-               continue
-            if msg.id == 0x4E:
-                print "Got it."
-                return
-        raise FitBitBeaconTimeout("Timeout waiting for beacon, will restart")
+        self.base.receive_bdcast()
 
     def _get_tracker_burst(self):
         d = self.base._check_burst_response()
@@ -214,7 +201,8 @@ class FitBit(object):
             try:
                 self.send_tracker_packet(opcode)
                 data = self.base.receive_acknowledged_reply()
-            except:
+            except ANTException, ae:
+                print 'Failed to send Opcode %s : ' % opcode, ae
                 continue
             if data[0] != self.current_packet_id:
                 print "Tracker Packet IDs don't match! %02x %02x" % (data[0], self.current_packet_id)

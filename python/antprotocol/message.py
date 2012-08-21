@@ -65,7 +65,6 @@ class Message(object):
         return raw
 
     def check_CS(self):
-        raw = [self.sync, self.len, self.id] + self.data
         return reduce(operator.xor, self._raw()) == self.cs
 
     def toBytes(self):
