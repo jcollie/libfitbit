@@ -73,6 +73,44 @@ def close():
     base = None
     tracker = None
 
+@command('test', 'Run a test from the old fitbit.py')
+def test():
+    global base
+    if base is None:
+        base = getBase(True)
+        if base is None:
+            print "No devices connected!"
+            return 1
+
+    device = FitBit(base)
+
+    device.init_tracker_for_transfer()
+
+    device.get_tracker_info()
+    # print device.tracker
+
+    device.parse_bank2_data(device.run_data_bank_opcode(0x02))
+    print "---"
+    device.parse_bank0_data(device.run_data_bank_opcode(0x00))
+    device.run_data_bank_opcode(0x04)
+    d = device.run_data_bank_opcode(0x02) # 13
+    for i in range(0, len(d), 13):
+        print ["%02x" % x for x in d[i:i+13]]
+    d = device.run_data_bank_opcode(0x00) # 7
+    print ["%02x" % x for x in d[0:7]]
+    print ["%02x" % x for x in d[7:14]]
+    j = 0
+    for i in range(14, len(d), 3):
+        print d[i:i+3]
+        j += 1
+    print "Records: %d" % (j)
+    device.parse_bank1_data(device.run_data_bank_opcode(0x01))
+
+    # for i in range(0, len(d), 14):
+    #     print ["%02x" % x for x in d[i:i+14]]
+    base.close()
+    base = None
+
 @command('>', 'Run opcode')
 @checktracker
 def opcode(*args):
