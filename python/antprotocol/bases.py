@@ -9,7 +9,7 @@ def getBase(debug):
                 if base.open():
                     print "Found %s base" % (base.NAME,)
                     return base
-            except Exception, e:
+            except Exception, e: # We shouldn't except Exception
                 print e
                 if retries:
                     print "retrying"

@@ -191,7 +191,7 @@ class FitBitClient(object):
             status = "error"
         self.info_dict[residx] = base64.b64encode(response)
         self.info_dict[statusidx] = status
-        return status = "success"
+        return status == "success"
 
     def run_upload_requests(self):
         self.fitbit.init_tracker_for_transfer()
