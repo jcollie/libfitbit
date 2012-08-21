@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #################################################################
 # pyusb access for ant devices
 # By Kyle Machulis <kyle@nonpolynomial.com>

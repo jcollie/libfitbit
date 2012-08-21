@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #################################################################
 # ant message protocol
 # By Kyle Machulis <kyle@nonpolynomial.com>
@@ -47,8 +46,14 @@
 
 import operator, struct, array, time
 
-class ANTReceiveException(Exception):
-    pass
+class ANTException(Exception):
+    """ Our Base Exception class """
+
+class ReceiveException(ANTException): pass
+
+class StatusException(ReceiveException): pass
+
+class SendException(ANTException): pass
 
 def hexList(data):
     return map(lambda s: chr(s).encode('HEX'), data)
@@ -58,9 +63,6 @@ def hexRepr(data):
 
 def intListToByteList(data):
     return map(lambda i: struct.pack('!H', i)[1], array.array('B', data))
-
-class ANTStatusException(Exception):
-    pass
 
 def log(f):
     def wrapper(self, *args, **kwargs):
@@ -125,23 +127,23 @@ class ANT(object):
         for tries in range(8):
             try:
                 data = self._receive_message()
-            except ANTReceiveException:
+            except ReceiveException:
                 continue
             if len(data) > 3 and data[2] == 0x6f and data[3] == status:
                 return
-        raise ANTStatusException("Failed to detect reset response")
+        raise StatusException("Failed to detect reset response")
 
     def _check_ok_response(self, msgid):
         # response packets will always be 7 bytes
         status = self._receive_message()
 
         if len(status) == 0:
-            raise ANTStatusException("No message response received!")
+            raise StatusException("No message response received!")
 
         if status[2] == 0x40 and status[4] == msgid and status[5] == 0x0:
             return
 
-        raise ANTStatusException("Message status %d does not match 0x0 (NO_ERROR)" % (status[5]))
+        raise StatusException("Message status %d does not match 0x0 (NO_ERROR)" % (status[5]))
 
     @log
     def reset(self):
@@ -211,7 +213,7 @@ class ANT(object):
             status = self._receive_message(size)
             if len(status) > 4 and status[2] == 0x4F:
                 return status[4:-1]
-        raise ANTReceiveException("Failed to receive acknowledged reply")
+        raise ReceiveException("Failed to receive acknowledged reply")
 
     @log
     def _check_tx_response(self, maxtries = 16):
@@ -223,8 +225,8 @@ class ANT(object):
                 if status[5] == 0x05: # TX successful
                     return
                 if status[5] == 0x06: # TX failed
-                    raise ANTReceiveException("Transmission Failed")
-        raise ANTReceiveException("No Transmission Ack Seen")
+                    raise ReceiveException("Transmission Failed")
+        raise ReceiveException("No Transmission Ack Seen")
 
     @log
     def _send_burst_data(self, data, sleep = None):
@@ -236,10 +238,10 @@ class ANT(object):
                     time.sleep(sleep)
             try:
                 self._check_tx_response()
-            except ANTReceiveException:
+            except ReceiveException:
                 continue
             return
-        raise ANTReceiveException("Failed to send burst data")
+        raise ReceiveException("Failed to send burst data")
 
     @log
     def _check_burst_response(self):
@@ -247,7 +249,7 @@ class ANT(object):
         for tries in range(128):
             status = self._receive_message()
             if len(status) > 5 and status[2] == 0x40 and status[5] == 0x4:
-                raise ANTReceiveException("Burst receive failed by event!")
+                raise ReceiveException("Burst receive failed by event!")
             elif len(status) > 4 and status[2] == 0x4f:
                 response = response + status[4:-1]
                 return response
@@ -255,7 +257,7 @@ class ANT(object):
                 response = response + status[4:-1]
                 if status[3] & 0x80:
                     return response
-        raise ANTReceiveException("Burst receive failed to detect end")
+        raise ReceiveException("Burst receive failed to detect end")
 
     @log
     def send_acknowledged_data(self, l):
@@ -263,10 +265,10 @@ class ANT(object):
             try:
                 self._send_message(0x4f, self._chan, l)
                 self._check_tx_response()
-            except ANTReceiveException:
+            except ReceiveException:
                 continue
             return
-        raise ANTReceiveException("Failed to send Acknowledged Data")
+        raise ReceiveException("Failed to send Acknowledged Data")
 
     def send_str(self, instring):
         if len(instring) > 8:
@@ -346,8 +348,8 @@ class ANT(object):
             return p
 
     def _receive(self, size=4096):
-        raise Exception("Need to define _receive function for ANT child class!")
+        raise NotImplementedError("Need to define _receive function for ANT child class!")
 
     def _send(self):
-        raise Exception("Need to define _send function for ANT child class!")
+        raise NotImplementedError("Need to define _send function for ANT child class!")
 

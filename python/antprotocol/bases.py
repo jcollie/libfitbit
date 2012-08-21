@@ -1,6 +1,6 @@
-from .protocol import ANTReceiveException
 from .libusb import ANTlibusb
 import usb
+import time
 
 def getBase(debug):
     for base in [bc(debug=debug) for bc in BASES]:

@@ -56,6 +56,7 @@ import argparse
 import xml.etree.ElementTree as et
 from fitbit import FitBit, FitBitBeaconTimeout
 from antprotocol.bases import getBase
+from antprotocol.exception import ANTException
 
 class FitBitRequest(object):
 
@@ -223,13 +224,8 @@ class FitBitDaemon(object):
         except FitBitBeaconTimeout, e:
             # This error is fairly normal, so we don't increase error counter.
             print e
-        except usb.USBError, e:
-            # Raise this error up the stack, since USB errors are fairly
-            # critical.
-            self.write_log('ERROR: ' + str(e))
-            raise
-        except Exception, e:
-            # For other errors, log and increase error counter.
+        except ANTException, e:
+            # For ANT errors, log and increase error counter.
             print "Failed with", e
             print
             print '-'*60
@@ -237,6 +233,11 @@ class FitBitDaemon(object):
             print '-'*60
             self.write_log('ERROR: ' + str(e))
             self.errors += 1
+        except usb.USBError, e:
+            # Raise this error up the stack, since USB errors are fairly
+            # critical.
+            self.write_log('ERROR: ' + str(e))
+            raise
         else:
             # Clear error counter after a successful sync.
             print "normal finish"

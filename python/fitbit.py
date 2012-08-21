@@ -68,9 +68,9 @@
 
 import itertools, sys, random, operator, datetime, time
 from antprotocol.bases import getBase
-from antprotocol.protocol import ANTReceiveException
+from antprotocol.protocol import ANTException, ReceiveException, SendException
 
-class FitBitBeaconTimeout(Exception):
+class FitBitBeaconTimeout(ReceiveException):
    pass
 
 class FitBit(object):
@@ -201,7 +201,7 @@ class FitBit(object):
     def _get_tracker_burst(self):
         d = self.base._check_burst_response()
         if d[1] != 0x81:
-            raise Exception("Response received is not tracker burst! Got %s" % (d[0:2]))
+            raise ReceiveException("Response received is not tracker burst! Got %s" % (d[0:2]))
         size = d[3] << 8 | d[2]
         if size == 0:
             return []
@@ -226,11 +226,11 @@ class FitBit(object):
                     data = self.base.receive_acknowledged_reply()
                     data.pop(0)
                     return data
-                raise Exception("run_opcode: opcode %s, no payload" % (opcode))
+                raise SendException("run_opcode: opcode %s, no payload" % (opcode))
             if data[1] == 0x41:
                 data.pop(0)
                 return data
-        raise Exception("Failed to run opcode %s" % (opcode))
+        raise ANTException("Failed to run opcode %s" % (opcode))
 
     def send_tracker_payload(self, payload):
         # The first packet will be the packet id, the length of the
@@ -290,7 +290,7 @@ class FitBit(object):
             if len(bank) == 0:
                 return data
             data = data + bank
-        raise ANTReceiveException("Cannot complete data bank")
+        raise ReceiveException("Cannot complete data bank")
 
     def parse_bank0_data(self, data):
         # First 4 bytes are a time
@@ -347,7 +347,7 @@ class FitBit(object):
                 elapsed = (d[5] << 8) | d[4]
                 steps = (d[9]<< 16) | (d[8] << 8) | d[7]
                 dist = (d[12] << 16) | (d[11]<< 8) | d[10]
-                foors = 0
+                floors = 0
                 if ultra:
                     floors = ((d[14] << 8) | d[13]) / 10
                 print "Activity summary: duration: %s, %d steps, %fkm, %d floors" % (
@@ -377,11 +377,12 @@ class FitBit(object):
             i += 4
 
     def write_settings(self, options ,greetings = "", chatter = []):
-        greeting = greeting.ljust( 8, '\0')
+        greetings = greetings.ljust( 8, '\0')
         for i in range(max(len(chatter), 3)):
             chatter[i] = chatter[i].ljust(8, '\0')
-        
-        self.write_bank(0, payload)
+        payload = []
+        if False: # not ready yet
+           self.write_bank(4, payload)
 
     def write_bank(self, index, data):
         self.run_opcode([0x25, index, len(data), 0,0,0,0], data)
