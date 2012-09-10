@@ -119,7 +119,7 @@ class FitBit(object):
 
     def parse_info_packet(self, data):
         """Parses the information gotten from the 0x24 retrieval command"""
-        
+
         self.serial = data[0:5]
         self.hardware_version = data[5]
         self.bsl_major_version = data[6]
@@ -270,7 +270,7 @@ class FitBit(object):
     def get_data_bank(self):
         data = []
         cmd = 0x70  # Send 0x70 on first burst
-        for parts in range(400):
+        for parts in range(2000):
             bank = self.check_tracker_data_bank(self.current_bank_id, cmd)
             self.current_bank_id += 1
             cmd = 0x60  # Send 0x60 on subsequent bursts
@@ -296,7 +296,7 @@ class FitBit(object):
             else:
                 record_date = (datetime.datetime.fromtimestamp(last_date_time + 60 * time_index))
                 # steps are easy. It's just the last byte
-                steps = data[i+2] 
+                steps = data[i+2]
                 # active score: second byte, subtract 10 (because METs
                 # start at 1 but 1 is subtracted per minute, see
                 # asterisk note on fitbit website, divide by 10.
@@ -305,7 +305,7 @@ class FitBit(object):
                 not_sure = data[i] - 0x81
                 print "%s: ???: %d Active Score: %f Steps: %d" % (record_date, not_sure, active_score, steps)
                 i = i + 3
-                time_index = time_index + 1        
+                time_index = time_index + 1
 
     def parse_bank1_data(self, data):
         ultra = self.hardware_version >= 12
@@ -362,6 +362,7 @@ class FitBit(object):
             d = data[i:i+4]
             tstamp = d[3] | d[2] << 8 | d[1] << 16 | d[0] << 24
             i += 4
+
 
     def write_settings(self, options ,greetings = "", chatter = []):
         greetings = greetings.ljust( 8, '\0')
