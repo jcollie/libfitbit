@@ -60,36 +60,40 @@ from antprotocol.protocol import ANTException, FitBitBeaconTimeout
 
 class FitBitRequest(object):
 
-    def __init__(self, url):
-        self.url = url
-
-    def get_response(self, info_dict):
-        data = urllib.urlencode(info_dict)
-        req = urllib2.urlopen(self.url, data)
-        res = req.read()
-        self.init(res)
-
-    def init(self, response):
+    def __init__(self, host, path, https = False, response = None, opcodes = []):
         self.current_opcode = {}
-        self.opcodes = []
-        self.root = et.fromstring(response.strip())
-        self.host = None
-        self.path = None
-        self.response = None
-        if self.root.find("response") is not None:
-            self.host = self.root.find("response").attrib["host"]
-            self.path = self.root.find("response").attrib["path"]
-            if self.root.find("response").text:
-                response = self.root.find("response").text
-                self.response = dict(urlparse.parse_qsl(response))
+        self.opcodes = opcodes
+        self.response = response
+        self.host = host
+        self.path = path
+        if https:
+            scheme = 'https://'
+        else:
+            scheme = 'http://'
+        self.url = scheme + host + path
 
-        for remoteop in self.root.findall("device/remoteOps/remoteOp"):
-            self.opcodes.append(RemoteOp(remoteop))
+    def upload(self, params):
+        data = urllib.urlencode(params)
+        req = urllib2.urlopen(self.url, data)
+        self.rawresponse = req.read()
 
     def getNext(self):
-        if self.host:
-            return FitBitRequest("http://%s%s" % (self.host, self.path))
-        return None
+        root = et.fromstring(self.rawresponse.strip())
+        xmlresponse = root.find("response")
+        if xmlresponse is None:
+            return None
+        
+        host = xmlresponse.attrib["host"]
+        path = xmlresponse.attrib["path"]
+        response = xmlresponse.text
+        if response:
+            response = dict(urlparse.parse_qsl(response))
+
+        opcodes = []
+        for remoteop in root.findall("device/remoteOps/remoteOp"):
+            opcodes.append(RemoteOp(remoteop))
+
+        return FitBitRequest(host, path, response=response, opcodes=opcodes)
 
     def dump(self):
         ops = []
@@ -123,8 +127,7 @@ class RemoteOp(object):
 
 class FitBitClient(object):
     CLIENT_UUID = "2ea32002-a079-48f4-8020-0badd22939e3"
-    #FITBIT_HOST = "http://client.fitbit.com:80"
-    FITBIT_HOST = "https://client.fitbit.com" # only used for initial request
+    FITBIT_HOST = "client.fitbit.com"
     START_PATH = "/device/tracker/uploadData"
 
     def __init__(self, debug=False):
@@ -196,17 +199,21 @@ class FitBitClient(object):
     def run_upload_requests(self):
         self.fitbit.init_tracker_for_transfer()
 
-        conn = FitBitRequest(self.FITBIT_HOST + self.START_PATH)
+        conn = FitBitRequest(self.FITBIT_HOST, self.START_PATH, https=True)
 
         # Start the request Chain
         self.form_base_info()
         while conn is not None:
-            conn.get_response(self.info_dict)
-            self.form_base_info(conn.response)
             op_index = 0
             for op in conn.opcodes:
-                self.run_request(op, op_index)
+                if not self.run_request(op, op_index):
+                    # Don't continue if error
+                    break
                 op_index += 1
+
+            self.form_base_info(conn.response)
+            conn.upload(self.info_dict)
+
             self.data.append(conn.dump())
             conn = conn.getNext()
 
