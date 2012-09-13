@@ -81,6 +81,7 @@ class FitBitRequest(object):
         root = et.fromstring(self.rawresponse.strip())
         xmlresponse = root.find("response")
         if xmlresponse is None:
+            print "That was it."
             return None
         
         host = xmlresponse.attrib["host"]
@@ -95,6 +96,21 @@ class FitBitRequest(object):
 
         return FitBitRequest(host, path, response=response, opcodes=opcodes)
 
+    def run_opcodes(self, fitbit):
+        res = {}
+        op_index = 0
+        for op in self.opcodes:
+            try:
+                op.run(fitbit)
+                res["opResponse[%d]" % op_index] = op.response
+                res["opStatus[%d]" % op_index] = op.status
+            except ANTException:
+                print "failed running", op.dump()
+                break
+
+            op_index += 1
+        return res
+
     def dump(self):
         ops = []
         for op in self.opcodes:
@@ -108,22 +124,27 @@ class RemoteOp(object):
     def __init__(self, data):
         opcode = base64.b64decode(data.find("opCode").text)
         self.opcode = [ord(x) for x in opcode]
+        self.status = "failed"
         self.payload = None
-        self.response = None
-        if data.find("payloadData").text is not None:
-            payload = base64.b64decode(data.find("payloadData").text)
+        self.rawresponse = []
+        self.response = ''
+        payload = data.find("payloadData").text
+        if  payload is not None:
+            payload = base64.b64decode(payload)
             self.payload = [ord(x) for x in payload]
 
     def run(self, fitbit):
-        self.response = fitbit.run_opcode(self.opcode, self.payload)
-        res = [chr(x) for x in self.response]
-        return ''.join(res)
+        self.rawresponse = fitbit.run_opcode(self.opcode, self.payload)
+        response = [chr(x) for x in self.rawresponse]
+        self.response = base64.b64encode(''.join(response))
+        self.status = "success"
 
     def dump(self):
         return {'request':
                 {'opcode': self.opcode,
                 'payload': self.payload},
-                'response': self.response}
+                'status': self.status,
+                'response': self.rawresponse}
 
 class FitBitClient(object):
     CLIENT_UUID = "2ea32002-a079-48f4-8020-0badd22939e3"
@@ -182,20 +203,6 @@ class FitBitClient(object):
             pass
         self.fitbit.base = None
 
-    def run_request(self, op, index):
-        residx = "opResponse[%d]" % index
-        statusidx = "opStatus[%d]" % index
-        try:
-            response = op.run(self.fitbit)
-            status = "success"
-        except ANTException:
-            print "failed ..."
-            response = ''
-            status = "error"
-        self.info_dict[residx] = base64.b64encode(response)
-        self.info_dict[statusidx] = status
-        return status == "success"
-
     def run_upload_requests(self):
         self.fitbit.init_tracker_for_transfer()
 
@@ -204,14 +211,10 @@ class FitBitClient(object):
         # Start the request Chain
         self.form_base_info()
         while conn is not None:
-            op_index = 0
-            for op in conn.opcodes:
-                if not self.run_request(op, op_index):
-                    # Don't continue if error
-                    break
-                op_index += 1
-
             self.form_base_info(conn.response)
+
+            self.info_dict.update(conn.run_opcodes(self.fitbit))
+
             conn.upload(self.info_dict)
 
             self.data.append(conn.dump())
