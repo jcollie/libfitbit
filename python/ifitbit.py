@@ -27,7 +27,8 @@ def print_help():
     for cmd in sorted(helps.keys()):
         print '%s\t%s' % (cmd, helps[cmd])
 
-from antprotocol.bases import getBase
+from antprotocol.connection import getConn
+from antprotocol.protocol import ANT
 from fitbit import FitBit
 import time
 
@@ -57,10 +58,11 @@ def init(*args):
     if len(args) >= 1:
         debug = bool(int(args[0]))
         if debug: print "Debug ON"
-    base = getBase(debug)
-    if base is None:
+    conn = getConn()
+    if conn is None:
         print "No device connected."
         return
+    base = ANT(conn)
     tracker = FitBit(base)
     tracker.init_tracker_for_transfer()
 
@@ -69,7 +71,7 @@ def close():
     global base, tracker
     if base is not None:
         print "Closing connection"
-        base.close()
+        base.connection.close()
     base = None
     tracker = None
 
@@ -77,11 +79,11 @@ def close():
 def test():
     global base
     if base is None:
-        base = getBase(True)
-        if base is None:
+        conn = getConn()
+        if conn is None:
             print "No devices connected!"
             return 1
-
+        base = ANT(conn)
     device = FitBit(base)
 
     device.init_tracker_for_transfer()
@@ -108,7 +110,7 @@ def test():
 
     # for i in range(0, len(d), 14):
     #     print ["%02x" % x for x in d[i:i+14]]
-    base.close()
+    base.connection.close()
     base = None
 
 @command('>', 'Run opcode')

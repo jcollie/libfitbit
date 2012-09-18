@@ -55,8 +55,8 @@ import base64
 import argparse
 import xml.etree.ElementTree as et
 from fitbit import FitBit
-from antprotocol.bases import getBase
-from antprotocol.protocol import ANTException, FitBitBeaconTimeout
+from antprotocol.connection import getConn
+from antprotocol.protocol import ANT, ANTException, FitBitBeaconTimeout
 
 class FitBitRequest(object):
 
@@ -156,10 +156,11 @@ class FitBitClient(object):
         self.log_info = {}
         self.time = time.time()
         self.data = []
-        base = getBase(debug)
-        if base is None:
+        conn = getConn()
+        if conn is None:
             print "No base found!"
             exit(1)
+        base = ANT(conn)
         self.fitbit = FitBit(base)
         if not self.fitbit:
             print "No devices connected!"
@@ -198,7 +199,7 @@ class FitBitClient(object):
         self.dump_connection()
         print 'Closing USB device'
         try:
-            self.fitbit.base.close()
+            self.fitbit.base.connection.close()
         except AttributeError:
             pass
         self.fitbit.base = None
