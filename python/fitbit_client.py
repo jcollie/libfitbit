@@ -236,6 +236,7 @@ class FitBitDaemon(object):
         except:
             f.close()
             raise
+        f.close()
         self.log_info = f.log_info
 
     def try_sync(self):
