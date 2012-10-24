@@ -112,7 +112,7 @@ class FitBitANT(ANTUSBConnection):
                                         ])
         self._connection.ctrl_transfer(0x40, 0x12, 0x0C, 0x0, [])
         try:
-            self.receive()
+            self.receive(1024)
         except usb.USBError:
             pass
 
