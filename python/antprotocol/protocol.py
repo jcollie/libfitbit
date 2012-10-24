@@ -89,7 +89,8 @@ def log(f):
 
 class ANT(object):
 
-    def __init__(self, chan=0x00, debug=False):
+    def __init__(self, connection, chan=0x00, debug=False):
+        self.connection = connection
         self._debug = debug
         self._chan = chan
 
@@ -296,7 +297,7 @@ class ANT(object):
         msg = MessageOUT(msgid, *args)
         if self._debug:
             print '  '*self._loglevel, msg
-        return self._send(msg.toBytes())
+        return self.connection.send(msg.toBytes())
 
     def _find_sync(self, buf, start=0):
         i = 0;
@@ -319,7 +320,7 @@ class ANT(object):
                 # data[] too small, try to read some more
                 from usb.core import USBError
                 try:
-                    data += self._receive(size).tolist()
+                    data += self.connection.receive(size).tolist()
                     timeouts = 0
                 except USBError:
                     timeouts = timeouts+1
@@ -354,10 +355,4 @@ class ANT(object):
             if self._debug:
                 print '  '*self._loglevel, msg
             return msg
-
-    def _receive(self, size=4096):
-        raise NotImplementedError("Need to define _receive function for ANT child class!")
-
-    def _send(self):
-        raise NotImplementedError("Need to define _send function for ANT child class!")
 
