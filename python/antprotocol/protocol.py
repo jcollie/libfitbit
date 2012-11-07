@@ -44,7 +44,7 @@
 # Added to and untwistedized and fixed up by Kyle Machulis <kyle@nonpolynomial.com>
 #
 
-import struct, array, time
+import struct, array, time, os, sys
 from message import MessageIN, MessageOUT
 
 class ANTException(Exception):
@@ -235,13 +235,13 @@ class ANT(object):
     def receive_bdcast(self):
         # FitBit device initialization
         for tries in range(60):
-            print "Waiting for beacon"
+            os.write(sys.stdout.fileno(), '.')
             try:
                 msg = self._receive_message()
             except NoMessageException:
                continue
             if msg.id == 0x4E:
-                print "Got it."
+                os.write(sys.stdout.fileno(), '!')
                 return
         raise FitBitBeaconTimeout("Timeout waiting for beacon, will restart")
 

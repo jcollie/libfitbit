@@ -1,4 +1,4 @@
-import usb
+import usb, os, sys
 
 class ANTConnection(object):
     """ An abstract class that represents a connection """
@@ -122,7 +122,7 @@ CONNS = [FitBitANT, DynastreamANT]
 def getConn():
     for conn in [bc() for bc in CONNS]:
         if conn.open():
-            print "Found %s base" % (conn.NAME,)
+            os.write(sys.stdout.fileno(), "\n%s: " % conn.NAME)
             return conn
     print "Failed to find a base"
     return None
