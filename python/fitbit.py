@@ -66,7 +66,6 @@
 # - Implementing data clearing
 
 import itertools, sys, random, operator, datetime, time
-from antprotocol.bases import getBase
 from antprotocol.protocol import ANTException, ReceiveException, SendException
 
 class FitBit(object):
