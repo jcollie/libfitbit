@@ -55,6 +55,7 @@ import base64
 import argparse
 import xml.etree.ElementTree as et
 from fitbit import FitBit
+import csv_writer
 from antprotocol.connection import getConn
 from antprotocol.protocol import ANT, ANTException, FitBitBeaconTimeout
 
@@ -182,21 +183,34 @@ class FitBitClient(object):
         for f in ['deviceInfo.serialNumber','userPublicId']:
             if f in self.info_dict:
                 self.log_info[f] = self.info_dict[f]
+               
 
     def dump_connection(self, directory='~/.fitbit'):
         directory = os.path.expanduser(directory)
+        directory = os.path.join(directory, self.log_info['userPublicId'])
+        output_file = os.path.join(directory,'connection-%d.txt' % int(self.time))
         data = yaml.dump(self.data)
-        if 'userPublicId' in self.log_info:
-            directory = os.path.join(directory, self.log_info['userPublicId'])
+        if 'userPublicId' in self.log_info:            
             if not os.path.isdir(directory):
                 os.makedirs(directory)
-            f = open(os.path.join(directory,'connection-%d.txt' % int(self.time)), 'w')
+            f = open(output_file, 'w')
             f.write(data)
             f.close()
         print data
+        return output_file
+    
+    def write_csv(self):
+        import traceback
+        try:
+            csv_writer.write_csv( csv_writer.convert_for_csv(self.data), self.info_dict['userPublicId'] )
+        except Exception:
+            print "Could not write csv files."
+            traceback.print_exc(file=sys.stdout)
 
     def close(self):
         self.dump_connection()
+        self.write_csv()
+            
         print 'Closing USB device'
         try:
             self.fitbit.base.connection.close()
