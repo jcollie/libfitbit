@@ -55,7 +55,7 @@ import base64
 import argparse
 import xml.etree.ElementTree as et
 from fitbit import FitBit
-import csv_writer
+import csv_writer, client_config
 from antprotocol.connection import getConn
 from antprotocol.protocol import ANT, ANTException, FitBitBeaconTimeout
 
@@ -208,8 +208,11 @@ class FitBitClient(object):
             traceback.print_exc(file=sys.stdout)
 
     def close(self):
-        self.dump_connection()
-        self.write_csv()
+        cfg = client_config.ClientConfig()
+        if cfg.dump_connection():
+            self.dump_connection()
+        if cfg.write_csv():
+            self.write_csv()
             
         print 'Closing USB device'
         try:
@@ -270,7 +273,7 @@ class FitBitDaemon(object):
             print '-'*60
             traceback.print_exc(file=sys.stdout)
             print '-'*60
-            self.write_log('ERROR: ' + str(e))
+            elf.write_log('ERROR: ' + str(e))
             self.errors += 1
         except usb.USBError, e:
             # Raise this error up the stack, since USB errors are fairly
