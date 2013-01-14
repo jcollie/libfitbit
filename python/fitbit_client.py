@@ -187,7 +187,6 @@ class FitBitClient(object):
 
     def dump_connection(self, directory='~/.fitbit'):
         directory = os.path.expanduser(directory)
-        directory = os.path.join(directory, self.log_info['userPublicId'])
         output_file = os.path.join(directory,'connection-%d.txt' % int(self.time))
         data = yaml.dump(self.data)
         if 'userPublicId' in self.log_info:            
@@ -202,7 +201,8 @@ class FitBitClient(object):
     def write_csv(self):
         import traceback
         try:
-            csv_writer.write_csv( csv_writer.convert_for_csv(self.data), self.info_dict['userPublicId'] )
+            if 'userPublicId' in self.log_info:
+                csv_writer.write_csv( csv_writer.convert_for_csv(self.data), self.log_info['userPublicId'] )
         except Exception:
             print "Could not write csv files."
             traceback.print_exc(file=sys.stdout)
