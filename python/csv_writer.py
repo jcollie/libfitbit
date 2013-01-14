@@ -215,10 +215,12 @@ def main():
     Finds the most recent connection-dump and tries to convert it + write CSV
     Used for testing 
     """
-    directory = os.path.expanduser('~/.fitbit')
-    dirlist = os.listdir(directory)
+    directory = os.path.expanduser('~/.fitbit') 
+    dirlist = filter(lambda name: os.path.isdir( os.path.join(directory, name) ), os.listdir(directory))
+    
     if (len(dirlist) == 0):
         _log("No Tracker-Directory found. Aborting.")
+    
     
     tracker_id = dirlist[0] #use first tracker
         
