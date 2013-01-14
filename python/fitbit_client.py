@@ -273,7 +273,7 @@ class FitBitDaemon(object):
             print '-'*60
             traceback.print_exc(file=sys.stdout)
             print '-'*60
-            elf.write_log('ERROR: ' + str(e))
+            self.write_log('ERROR: ' + str(e))
             self.errors += 1
         except usb.USBError, e:
             # Raise this error up the stack, since USB errors are fairly
