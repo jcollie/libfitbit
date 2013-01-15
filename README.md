@@ -13,9 +13,6 @@ If you find libfitbit useful, please donate to the project at
 
 Join the libfitbit group on fitbit.com: http://www.fitbit.com/group/227FRX
 
-== Credits and Thanks ==
-=======
-
 Credits and Thanks
 ------------------
 Thanks to Matt Cutts for hooking me up with the hardware -
