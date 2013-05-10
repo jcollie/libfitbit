@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #################################################################
 # python fitbit object
 # By Kyle Machulis <kyle@nonpolynomial.com>
@@ -67,13 +66,12 @@
 # - Implementing data clearing
 
 import itertools, sys, random, operator, datetime, time
-from antprotocol.bases import FitBitANT, DynastreamANT
-from antprotocol.protocol import ANTReceiveException
+from antprotocol.protocol import ANTException, ReceiveException, SendException
 
 class FitBit(object):
     """Class to represent the fitbit tracker device, the portion of
     the fitbit worn by the user. Stores information about the tracker
-    (serial number, firmware version, etc...).
+    (serial number, hardware version, etc...).
 
     """
 
@@ -92,8 +90,8 @@ class FitBit(object):
         self.current_packet_id = None
         #: serial number of the tracker
         self.serial = None
-        #: firmware version loaded on the tracker
-        self.firmware_version = None
+        #: hardware version loaded on the tracker
+        self.hardware_version = None
         #: Major version of BSL (?)
         self.bsl_major_version = None
         #: Minor version of BSL (?)
@@ -122,7 +120,7 @@ class FitBit(object):
         """Parses the information gotten from the 0x24 retrieval command"""
 
         self.serial = data[0:5]
-        self.firmware_version = data[5]
+        self.hardware_version = data[5]
         self.bsl_major_version = data[6]
         self.bsl_minor_version = data[7]
         self.app_major_version = data[8]
@@ -134,13 +132,13 @@ class FitBit(object):
         """Returns string representation of tracker information"""
 
         return "Tracker Serial: %s\n" \
-               "Firmware Version: %d\n" \
+               "Hardware Version: %d\n" \
                "BSL Version: %d.%d\n" \
                "APP Version: %d.%d\n" \
                "In Mode BSL? %s\n" \
                "On Charger? %s\n" % \
                ("".join(["%x" % (x) for x in self.serial]),
-                self.firmware_version,
+                self.hardware_version,
                 self.bsl_major_version,
                 self.bsl_minor_version,
                 self.app_major_version,
@@ -185,32 +183,24 @@ class FitBit(object):
         self.base.send_acknowledged_data([0x7f, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3c])
 
     def wait_for_beacon(self):
-        # FitBit device initialization
-        print "Waiting for receive"
-        for tries in range(75):
-            try:
-                d = self.base._receive_message()
-                if d[2] == 0x4E:
-                    return
-            except Exception:
-                pass
-        raise ANTReceiveException("Failed to see tracker beacon")
+        self.base.receive_bdcast()
 
     def _get_tracker_burst(self):
         d = self.base._check_burst_response()
         if d[1] != 0x81:
-            raise Exception("Response received is not tracker burst! Got %s" % (d[0:2]))
+            raise ReceiveException("Response received is not tracker burst! Got %s" % (d[0:2]))
         size = d[3] << 8 | d[2]
         if size == 0:
             return []
         return d[8:8+size]
 
-    def run_opcode(self, opcode, payload = None):
+    def run_opcode(self, opcode, payload = []):
         for tries in range(4):
             try:
                 self.send_tracker_packet(opcode)
                 data = self.base.receive_acknowledged_reply()
-            except:
+            except ANTException, ae:
+                print 'Failed to send Opcode %s : ' % opcode, ae
                 continue
             if data[0] != self.current_packet_id:
                 print "Tracker Packet IDs don't match! %02x %02x" % (data[0], self.current_packet_id)
@@ -219,21 +209,19 @@ class FitBit(object):
                 return self.get_data_bank()
             if data[1] == 0x61:
                 # Send payload data to device
-                if payload is not None:
+                if len(payload) > 0:
                     self.send_tracker_payload(payload)
                     data = self.base.receive_acknowledged_reply()
-                    data.pop(0)
-                    return data
-                raise Exception("run_opcode: opcode %s, no payload" % (opcode))
+                    return data[1:]
+                raise SendException("run_opcode: opcode %s, no payload" % (opcode))
             if data[1] == 0x41:
-                data.pop(0)
-                return data
-        raise Exception("Failed to run opcode %s" % (opcode))
+                return data[1:]
+        raise ANTException("Failed to run opcode %s" % (opcode))
 
     def send_tracker_payload(self, payload):
         # The first packet will be the packet id, the length of the
-        # payload, and ends with the payload CRC
-        p = [0x00, self.gen_packet_id(), 0x80, len(payload), 0x00, 0x00, 0x00, 0x00, reduce(operator.xor, map(ord, payload))]
+        # payload, and ends with the payload checksum
+        p = [0x00, self.gen_packet_id(), 0x80, len(payload), 0x00, 0x00, 0x00, 0x00, reduce(operator.xor, payload)]
         prefix = itertools.cycle([0x20, 0x40, 0x60])
         for i in range(0, len(payload), 8):
             current_prefix = prefix.next()
@@ -242,7 +230,7 @@ class FitBit(object):
                 plist += [(current_prefix + 0x80) | self.base._chan]
             else:
                 plist += [current_prefix | self.base._chan]
-            plist += map(ord, payload[i:i+8])
+            plist += payload[i:i+8]
             while len(plist) < 9:
                 plist += [0x0]
             p += plist
@@ -288,13 +276,7 @@ class FitBit(object):
             if len(bank) == 0:
                 return data
             data = data + bank
-        raise ANTReceiveException("Cannot complete data bank")
-
-    def parse_bank2_data(self, data):
-        for i in range(0, len(data), 13):
-            print ["0x%.02x" % x for x in data[i:i+13]]
-            # First 4 bytes are seconds from Jan 1, 1970
-            print "Time: %s" % (datetime.datetime.fromtimestamp(data[i] | data[i + 1] << 8 | data[i + 2] << 16 | data[i + 3] << 24))
+        raise ReceiveException("Cannot complete data bank")
 
     def parse_bank0_data(self, data):
         # First 4 bytes are a time
@@ -325,12 +307,46 @@ class FitBit(object):
                 time_index = time_index + 1
 
     def parse_bank1_data(self, data):
-        for i in range(0, len(data), 14):
-            print ["0x%.02x" % x for x in data[i:i+13]]
+        ultra = self.hardware_version >= 12
+        banklen = {12:16}.get(self.hardware_version, 14)
+        for i in range(0, len(data), banklen):
+            d = data[i:i+banklen]
             # First 4 bytes are seconds from Jan 1, 1970
-            daily_steps = data[i+7] << 8 | data[i+6]
-            record_date = datetime.datetime.fromtimestamp(data[i] | data[i + 1] << 8 | data[i + 2] << 16 | data[i + 3] << 24)
-            print "Time: %s Daily Steps: %d" % (record_date, daily_steps)
+            maybe_calories = d[5] << 8| d[4]
+            daily_steps = d[9] << 24 | d[8] << 16 | d[7] << 8 | d[6]
+            daily_dist = (d[13] << 24 | d[12] << 16 | d[11] << 8 | d[10]) / 1000000.
+            daily_floors = 0
+            if ultra:
+                daily_floors = (d[15] << 8 | d[14]) / 10
+            record_date = datetime.datetime.fromtimestamp(d[0] | d[1] << 8 | d[2] << 16 | d[3] << 24)
+            print "Time: %s %d Daily Steps: %d, Daily distance: %fkm Daily floors: %d" % (
+                record_date, maybe_calories, daily_steps, daily_dist, daily_floors)
+
+    def parse_bank2_data(self, data):
+        ultra = self.hardware_version >= 12
+        banklen = {12:15}.get(self.hardware_version, 13)
+        for i in range(0, len(data), banklen):
+            d = data[i:i+banklen]
+            # First 4 bytes are seconds from Jan 1, 1970
+            print "Time: %s" % (datetime.datetime.fromtimestamp(d[0] | d[1] << 8 | d[2] << 16 | d[3] << 24))
+            if d[6] == 1:
+                elapsed = (d[5] << 8) | d[4]
+                steps = (d[9]<< 16) | (d[8] << 8) | d[7]
+                dist = (d[12] << 16) | (d[11]<< 8) | d[10]
+                floors = 0
+                if ultra:
+                    floors = ((d[14] << 8) | d[13]) / 10
+                print "Activity summary: duration: %s, %d steps, %fkm, %d floors" % (
+                    datetime.timedelta(seconds=elapsed), steps, dist / 100000., floors / 10)
+            else:
+                print ' '.join(['%02X' % x for x in d[4:]])
+
+
+    def parse_bank4_data(self, data):
+        assert len(data) == 64
+        print ' '.join(["0x%.02x" % x for x in data[:24]])
+        print "Greeting : ", ''.join([chr(x) for x in data[24:24+8]])
+        print "Chatter: ", ', '.join([''.join([chr(x) for x in data[i:i+8]]) for i in range(34, 64, 10)])
 
     def parse_bank6_data(self, data):
         i = 0
@@ -346,41 +362,16 @@ class FitBit(object):
             tstamp = d[3] | d[2] << 8 | d[1] << 16 | d[0] << 24
             i += 4
 
-def main():
-    #base = DynastreamANT(True)
-    base = FitBitANT(debug=True)
-    if not base.open():
-        print "No devices connected!"
-        return 1
 
-    device = FitBit(base)
+    def write_settings(self, options ,greetings = "", chatter = []):
+        greetings = greetings.ljust( 8, '\0')
+        for i in range(max(len(chatter), 3)):
+            chatter[i] = chatter[i].ljust(8, '\0')
+        payload = []
+        if False: # not ready yet
+           self.write_bank(4, payload)
 
-    device.init_tracker_for_transfer()
+    def write_bank(self, index, data):
+        self.run_opcode([0x25, index, len(data), 0,0,0,0], data)
 
-    device.get_tracker_info()
-    # print device.tracker
-
-    device.parse_bank2_data(device.run_data_bank_opcode(0x02))
-    print "---"
-    device.parse_bank0_data(device.run_data_bank_opcode(0x00))
-    device.run_data_bank_opcode(0x04)
-    d = device.run_data_bank_opcode(0x02) # 13
-    for i in range(0, len(d), 13):
-        print ["%02x" % x for x in d[i:i+13]]
-    d = device.run_data_bank_opcode(0x00) # 7
-    print ["%02x" % x for x in d[0:7]]
-    print ["%02x" % x for x in d[7:14]]
-    j = 0
-    for i in range(14, len(d), 3):
-        print d[i:i+3]
-        j += 1
-    print "Records: %d" % (j)
-    device.parse_bank1_data(device.run_data_bank_opcode(0x01))
-
-    # for i in range(0, len(d), 14):
-    #     print ["%02x" % x for x in d[i:i+14]]
-    base.close()
-    return 0
-
-if __name__ == '__main__':
-    sys.exit(main())
+# vim: set ts=4 sw=4 expandtab:

@@ -11,10 +11,10 @@ Hardware access - [http://openyou.org](http://openyou.org)
 If you find libfitbit useful, please donate to the project at
 [http://pledgie.com/campaigns/14375](http://pledgie.com/campaigns/14375)
 
+Join the libfitbit group on fitbit.com: http://www.fitbit.com/group/227FRX
 
 Credits and Thanks
 ------------------
-
 Thanks to Matt Cutts for hooking me up with the hardware -
 http://www.twitter.com/mattcutts
 
